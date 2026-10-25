@@ -1,0 +1,52 @@
+# 시험과 웹 이미지 (ForGIA test.yml 에서 왔다).
+#
+# **배포는 여기서 안 한다.** 배포는 사람이 paleo-server 에서 부른다 — 백업·기동 게이트·
+# smoke 가 거기 붙어 있다 (.guides/web/deployment.md).
+name: 시험
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 시험
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements-web.txt -r requirements-dev.txt
+      # 자료도 DB 도 저장소에 없다 — 시험이 픽스처를 스스로 세운다
+      - name: manage.py test
+        run: python web/manage.py test core --verbosity 2
+
+  build:
+    name: 이미지 굽기
+    needs: test        # **시험을 통과한 것만 이미지가 된다**
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+      # 태그를 밀 때만 Docker Hub 로 올린다. 그 밖에는 굽기만 한다 — Dockerfile 이
+      # 깨진 것을 잡되 판 번호를 어지럽히지 않는다.
+      - name: Docker Hub 로그인
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          tags: koprifossillab/siriopsis:${{ github.ref_type == 'tag' && github.ref_name || 'ci' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,7 @@
+# 호스트 venv(~/venv/Siriopsis) 하나에 전부 까는 입구.
+#
+#   python3 -m venv ~/venv/Siriopsis && . ~/venv/Siriopsis/bin/activate
+#   pip install -r requirements.txt
+
+-r requirements-web.txt
+-r requirements-dev.txt

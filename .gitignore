@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+
+# 장비마다 다른 값 (DB 위치, 비밀키). .env.template 이 견본이다
+.env
+
+# kopri-devdocs/guides 로 가는 심볼릭 링크 — kopri-devdocs 는 private 이다 (CLAUDE.md)
+.guides
+
+# DB 는 저장소에 두지 않는다 — 운영은 /srv/Siriopsis/db, 개발은 사본
+Siriopsis.db
+Siriopsis.db-wal
+Siriopsis.db-shm
+backup/

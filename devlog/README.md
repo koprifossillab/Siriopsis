@@ -1,0 +1,17 @@
+# devlog
+
+이름은 `YYYYMMDD_{계정}_{nnn}_{title}.md`, 계획은 `_P{nn}_`. 번호는 글쓴이마다 센다 — 가리킬 때 `wetherilli 001`.
+
+## 계정
+
+| Linux | GitHub |
+|---|---|
+| sclee | wetherilli |
+| paleoadmin | koprifossillab (운영) |
+
+## 색인
+
+| 글 | 무엇 |
+|---|---|
+| [20261025_wetherilli_P01](20261025_wetherilli_P01_stages.md) | 단계 계획 — 자료 조사, DiaRUGA 에서 가져올 것, 빛 더미 뷰어부터 운영까지 |
+| [20261025_wetherilli_001](20261025_wetherilli_001_bootstrap.md) | 작업 환경 — Cropobite 001 뼈대, 이름·포트·NAS 작업 공간을 정함 |

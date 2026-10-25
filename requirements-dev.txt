@@ -1,0 +1,7 @@
+# 시험에만 쓰는 것. **어느 컨테이너 이미지에도 안 들어간다.**
+#
+#   pip install -r requirements-web.txt -r requirements-dev.txt
+#   python web/manage.py test core
+#
+# 시험은 Django 기본 러너로 돈다 (pytest 없음 — 형제 저장소와 같다).
+# 브라우저 레이어가 필요해지면 playwright 를 여기 더한다.

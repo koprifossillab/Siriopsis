@@ -1,0 +1,6 @@
+# 웹(Django)이 쓰는 것만. 컨테이너 이미지가 이 파일로 만들어진다.
+# 무거운 분석 라이브러리가 필요해지면 여기 넣지 말고 requirements-<갈래>.txt 로 가른다
+# (DiaRUGA·ForGIA 의 web / pipeline 경계).
+
+Django==5.2.16
+gunicorn==26.0.0      # 운영 서빙. 개발용 runserver 를 대신한다
