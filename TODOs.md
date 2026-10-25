@@ -30,7 +30,7 @@
 6. **counterpart 짝 슬랩** (사용자 2026-10-25) — 같은 엑셀에 counterpart 가 적힌 표본은 짝이 맞는 반대편 슬랩이 DB 에 같이 있다.
    한 표본을 고르면 반대쪽 표본의 자료도 함께 모아 보거나, 서로 건너가는 링크를 둔다. 실마리: `SP-2016-64&65(dorsal)` 처럼 두 슬랩을 한 장에 찍은 전경 11 장
    (지금은 앞 번호에만 붙는다 — 짝을 알면 양쪽에 보인다) — 됨 (wetherilli 013, `Counterpart`·`_counterpart.html` 조각)
-8. **phyloserver `siriuspasset` 자료 통째로 받기** (사용자 2026-10-25 — 「다 털어와도 된다. 우리 뷰어가 그 DB 기능을 완전히 대체할 수도 있다」)
+8. **phyloserver `siriuspasset` 자료 통째로 받기** — 받았다, 조사 015. 남은 것: 대신할 범위를 사용자와 (사용자 2026-10-25 — 「다 털어와도 된다. 우리 뷰어가 그 DB 기능을 완전히 대체할 수도 있다」)
    - 요청서: NAS `temp/20261025_request_phyloserver_json_export.md` — ① `export_siriuspasset`(모든 모델·이력·사진·EPMA 파일 → NAS `phyloserver-export/<날짜>/`)
      ② 넘어가는 동안의 `GET /siriuspasset/export.json`. 사용자가 phyloserver 쪽에서 만든다
    - 받으면: 무엇이 있는지 조사(devlog) → Siriopsis 로 무엇을 옮길지(사진 메타·EPMA·이력) 정한다. `import_catalog` 는 export.json 을 먼저 읽는다(catalog 세션이 짜 둔다)

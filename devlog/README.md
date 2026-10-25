@@ -13,6 +13,8 @@
 
 | 글 | 무엇 |
 |---|---|
+| [20261026_wetherilli_015](20261026_wetherilli_015_phyloserver_export_survey.md) | phyloserver siriuspasset 통째 내보내기 조사 — 슬랩 4,583·표본 9,505·사진 83,375(원본은 NAS)·EPMA 167 GB·이력 |
+| [20261026_wetherilli_014](20261026_wetherilli_014_release_v030.md) | `v0.3.0` 운영에 — 일꾼 둘과 지휘 세션의 브랜치를 합쳐(merge 마이그레이션) 올리고 반입 넷 |
 | [20261025_wetherilli_013](20261025_wetherilli_013_stars_and_counterparts.md) | 별표 표본(`/starred/`)과 counterpart 짝 — phyloserver 가 원천(export.json 을 먼저), 엑셀은 빈 곳만, 두 슬랩 전경은 양쪽에 |
 | [20261025_wetherilli_012](20261025_wetherilli_012_bare_name_is_a.md) | 글자 없는 이름은 A 표본 — 반입이 끝에 다시 정한다, phyloserver·NAS 에 다른 글자가 있는 슬랩 66 은 예외 |
 | [20261025_wetherilli_011](20261025_wetherilli_011_specimen_outline.md) | 표본 테두리 — 더미마다 하나, 그리기·고치기·지우기, 서버가 다시 잰다, 크기가 같은 컷에만 얹고 「맞춤 전」 |
