@@ -13,6 +13,7 @@
 
 | 글 | 무엇 |
 |---|---|
+| [20261025_wetherilli_013](20261025_wetherilli_013_stars_and_counterparts.md) | 별표 표본(`/starred/`)과 counterpart 짝 — phyloserver 가 원천(export.json 을 먼저), 엑셀은 빈 곳만, 두 슬랩 전경은 양쪽에 |
 | [20261025_wetherilli_012](20261025_wetherilli_012_bare_name_is_a.md) | 글자 없는 이름은 A 표본 — 반입이 끝에 다시 정한다, phyloserver·NAS 에 다른 글자가 있는 슬랩 66 은 예외 |
 | [20261025_wetherilli_009](20261025_wetherilli_009_slab_views_and_slab_page.md) | 슬랩 전경(dorsal) 반입 — kind `slab` 3,915, 슬랩 화면을 왼쪽 전경·속성 / 오른쪽 더미 카드로 |
 | [20261025_wetherilli_008](20261025_wetherilli_008_regroup_and_backup.md) | 묶음 고치기(가르기·합치기·지우기·컷 숨기기, 반입이 덮지 않는다)와 백업(시간별·NAS·`/healthz` 깃발) |

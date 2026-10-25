@@ -5,3 +5,4 @@
 Django==5.2.16
 gunicorn==26.0.0      # 운영 서빙. 개발용 runserver 를 대신한다
 Pillow==11.3.0        # 컷의 폭·높이·EXIF, 2단계 축소본
+openpyxl==3.1.5     # 엑셀 목록의 별표·counterpart (import_workbooks, wetherilli 013) — 가볍다

@@ -1,0 +1,83 @@
+{% extends "core/base.html" %}
+{% load specimens_extras %}
+{% block title %}별표 표본 — {% endblock %}
+{% comment %}
+  별표 표본 (wetherilli 013) — 엑셀 목록과 phyloserver remarks 의 ☆(연구에 쓰기 좋은 표본, 사용자). 목록 화면(home)과 같은 꼴의 표·격자.
+  어디서 온 별표인지(엑셀·phyloserver)를 작게 적는다. 슬랩이 테이블에 없는 표본(사진 없음)도 줄에 낸다.
+{% endcomment %}
+{% block subtitle %}<b>별표 표본</b>{% endblock %}
+{% block mainclass %} class="wide"{% endblock %}
+{% block head %}
+<style>
+  .lhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .lhead h2 { margin: 0; font-size: 19px; }
+  .seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); margin-left: auto; }
+  .seg a { padding: 4px 8px; border-radius: 6px; color: var(--fg); display: inline-flex; }
+  .seg a:hover { text-decoration: none; background: var(--group-bg); }
+  .seg a.on { background: var(--accent); color: var(--bg); }
+  .seg svg { width: 17px; height: 17px; }
+  table.slabs { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .slabs th { text-align: left; font-size: 11px; font-weight: 650; color: var(--dim); text-transform: uppercase;
+              letter-spacing: .4px; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .slabs td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .slabs .n { text-align: right; }
+  .slabs a.no { font-weight: 650; font-size: 13.5px; }
+  .slabs .taxa { font-style: italic; }
+  .slabs img.thumb { display: block; width: 96px; aspect-ratio: 3 / 2; object-fit: cover; background: #000; border-radius: 4px; }
+  .slabs .star { color: #e3b341; letter-spacing: 1px; white-space: nowrap; }
+  .src { font-size: 10.5px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin-right: 3px; white-space: nowrap; }
+  @media (max-width: 900px) { .slabs .wide-only { display: none; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="lhead">
+  <h2>별표 표본</h2>
+  <span class="dim">{{ rows|length }} 표본 · 사진 있는 슬랩 {{ n_with }} — 연구에 쓰기 좋은 표본(목록 remarks 의 ☆)</span>
+  <nav class="seg" aria-label="보기">
+    <a href="?" title="표"{% if mode == 'list' %} class="on"{% endif %}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg></a>
+    <a href="?view=grid" title="격자 — 대표 사진"{% if mode == 'grid' %} class="on"{% endif %}>
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></a>
+  </nav>
+</div>
+
+{% if not rows %}
+<p class="dim">별표 표본이 없습니다 — 엑셀 반입(`import_workbooks`)과 phyloserver 반입(`import_catalog`)을 돌렸는지 보세요.</p>
+{% elif mode == 'list' %}
+<table class="slabs">
+  <thead><tr>
+    <th>대표 컷</th><th>표본</th><th></th><th>분류군</th><th class="wide-only">문</th><th class="wide-only">층준</th>
+    <th class="n">더미</th><th>별표 출처</th><th class="wide-only">비고</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{% if r.frame %}<a href="{% url 'stack' r.stack.id %}"><img class="thumb" loading="lazy" src="{% frame_url r.frame 400 %}" alt=""></a>{% endif %}</td>
+      <td>{% if r.slab %}<a class="no" href="{% url 'slab' r.slab_no %}">{{ r.specimen_no }}</a>{% else %}{{ r.specimen_no }} <span class="dim">사진 없음</span>{% endif %}
+        {% if r.specimen.catalog_id %}<a href="{{ catalog }}specimen_detail/{{ r.specimen.catalog_id }}/" target="_blank" rel="noopener" style="font-size:11px">phyloserver →</a>{% endif %}</td>
+      <td class="star" title="☆ {{ r.stars }}">{{ r.marks }}</td>
+      <td class="taxa">{{ r.taxon_name|default:"—" }}</td>
+      <td class="wide-only dim">{{ r.phylum }}</td>
+      <td class="wide-only mono">{{ r.horizon|default:"—" }}</td>
+      <td class="n">{% if r.n_stacks %}{{ r.n_stacks }}{% elif r.slab %}<span class="dim" title="이 표본에 붙은 더미가 없다 — 대표 컷은 슬랩의 것">슬랩</span>{% endif %}</td>
+      <td>{% for s in r.sources %}<span class="src">{{ s }}</span>{% endfor %}</td>
+      <td class="wide-only dim">{{ r.text }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="grid">
+  {% for r in rows %}
+  <a class="tile" href="{% if r.slab %}{% url 'slab' r.slab_no %}{% else %}#{% endif %}">
+    {% if r.frame %}<img class="pic" loading="lazy" src="{% frame_url r.frame 400 %}" alt="">{% else %}<span class="pic"></span>{% endif %}
+    <span class="meta"><b>{{ r.specimen_no }} <span style="color:#e3b341">{{ r.marks }}</span></b>
+      <span class="sub">{{ r.horizon|default:"층준 미기록" }}{% if not r.slab %} · 사진 없음{% endif %}</span>
+      <span class="taxa">{{ r.taxon_name|default:"—" }}</span>
+      <span class="tags">{% for s in r.sources %}<span class="src">{{ s }}</span>{% endfor %}</span>
+    </span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

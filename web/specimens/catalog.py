@@ -130,6 +130,70 @@ def fetch_all(base=None, timeout=20, delay=0.3, log=None, max_pages=1000):
     return out
 
 
+def parse_export(doc):
+    """`export.json` → fetch_all 과 같은 꼴 {슬랩: {...}}, 더해 슬랩·표본의 `counterpart` 와 `from_export` 표시.
+
+    phyloserver 의 내보내기(요청서 NAS `Siriopsis/temp/20261025_request_phyloserver_json_export.md`)는 모델 값을 그대로 낸다 — 빈 값은 null.
+    """
+    out, by_id = {}, {}
+    for s in doc.get("slabs") or []:
+        if not s.get("slab_no"):
+            continue
+        by_id[s["id"]] = out[s["slab_no"]] = {
+            "id": s["id"], "horizon": (s.get("horizon") or "").strip(), "specimens": {},
+            "counterpart": (s.get("counterpart") or "").strip(), "from_export": True,
+        }
+    for p in doc.get("specimens") or []:
+        slab = by_id.get(p.get("slab_id"))
+        if slab is None or not p.get("specimen_no"):
+            continue
+        slab["specimens"][p["specimen_no"]] = {
+            "id": p["id"], "taxon_name": (p.get("taxon_name") or "").strip(), "phylum": (p.get("phylum") or "").strip(),
+            "remarks": (p.get("remarks") or "").strip(), "counterpart": (p.get("counterpart") or "").strip(),
+        }
+    return out
+
+
+def fetch_export(base=None, timeout=60, log=None):
+    """`GET <base>export.json` — 한 번으로 모든 슬랩·표본. 없으면(404)·연결이 안 되면 OSError, 꼴이 틀리면 ValueError."""
+    import json
+    base = (base or settings.CATALOG_URL).rstrip("/") + "/"
+    with urllib.request.urlopen(base + "export.json", timeout=timeout) as resp:
+        doc = json.loads(resp.read().decode("utf-8"))
+    if not isinstance(doc, dict) or "slabs" not in doc:
+        raise ValueError("export.json 의 꼴이 아니다")
+    out = parse_export(doc)
+    if log:
+        log(f"export.json {doc.get('generated_at', '')} · 슬랩 {len(out)}")
+    return out
+
+
+def _counterparts(slab, data):
+    """export.json 의 counterpart 칸 → Counterpart 행(origin=phyloserver). 슬랩 칸은 표본 칸에 없는 짝만 (phyloserver 가 첫 행의 값을 슬랩에 옮겨 두었다)."""
+    from .models import Counterpart
+    from .workbook import _UNSURE, parse_counterpart
+    rows, seen = [], set()
+    for no, sp in sorted(data["specimens"].items()):
+        text = sp.get("counterpart") or ""
+        for other, other_letter in parse_counterpart(text, slab.year)[0]:
+            letter = _letter(slab.slab_no, no)
+            if (other, other_letter) == (slab.slab_no, letter):
+                continue
+            seen.add(other)
+            rows.append(Counterpart(origin=Counterpart.Origin.PHYLOSERVER, slab_no=slab.slab_no, letter=letter,
+                                    other_slab_no=other, other_letter=other_letter, text=text[:300],
+                                    source=no, row=sp["id"] or 0))
+    text = data.get("counterpart") or ""
+    for other, other_letter in parse_counterpart(text, slab.year)[0]:
+        if other != slab.slab_no and other not in seen:
+            rows.append(Counterpart(origin=Counterpart.Origin.PHYLOSERVER, slab_no=slab.slab_no, letter="",
+                                    other_slab_no=other, other_letter=other_letter, text=text[:300],
+                                    source=slab.slab_no, row=data["id"] or 0))
+    for r in rows:
+        r.uncertain = bool(_UNSURE.search(r.text))
+    return rows
+
+
 @transaction.atomic
 def apply_slab(slab, data, now=None):
     """한 슬랩의 목록 값을 테이블에 옮긴다. 목록에 없는 표본은 만들지 않는다 — 우리가 가진 표본만 채운다.
@@ -161,6 +225,13 @@ def apply_slab(slab, data, now=None):
         sp.remarks = row["remarks"]
         sp.save()
         n += 1
+    if data.get("from_export"):
+        # counterpart 는 export.json 에만 있다 — 읽은 슬랩은 phyloserver 의 짝으로 다시 만들고, 엑셀의 짝을 안 쓴다 (013)
+        from .models import Counterpart
+        Counterpart.objects.filter(origin=Counterpart.Origin.PHYLOSERVER, slab_no=slab.slab_no).delete()
+        Counterpart.objects.bulk_create(_counterparts(slab, data))
+        slab.counterpart_synced_at = slab.catalog_synced_at
+        slab.save(update_fields=["counterpart_synced_at"])
     return n
 
 
@@ -168,14 +239,21 @@ def apply_slab(slab, data, now=None):
 PAGE_WALK_OVER = 30
 
 
-def sync(slabs=None, fetch=None, log=None, fetch_everything=fetch_all):
+def sync(slabs=None, fetch=None, log=None, fetch_everything=fetch_all, fetch_whole=fetch_export):
     """테이블의 슬랩마다 목록 값을 채운다. 돌려주는 값: (찾은 슬랩, 못 찾은 슬랩, 채운 표본, 오류 목록).
 
-    슬랩이 적으면 슬랩마다 묻고(fetch_slab), 많으면 목록 전체를 한 번 읽는다(fetch_all).
+    **`export.json` 을 먼저 읽는다**(013) — 한 번으로 모든 슬랩, counterpart 도 든다. 없으면(404·연결 실패·꼴이 틀림) 지금까지처럼:
+    슬랩이 적으면 슬랩마다 묻고(fetch_slab), 많으면 목록 전체를 한 번 읽는다(fetch_all). 목록 화면에는 counterpart 가 없다.
     """
     slabs = list(slabs if slabs is not None else Slab.objects.all())
     found = missing = filled = 0
     errors = []
+    if fetch is None and fetch_whole is not None:
+        try:
+            fetch = fetch_whole(log=log).get
+        except (OSError, ValueError) as e:
+            if log:
+                log(f"export.json 없음({e}) — 목록 화면을 읽는다")
     if fetch is None:
         if len(slabs) > PAGE_WALK_OVER:
             try:

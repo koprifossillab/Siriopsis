@@ -80,6 +80,7 @@
   .themebtn svg { width: 17px; height: 17px; display: none; }
   .themebtn:hover { color: var(--accent); background: var(--bg); }
   .gearlink { align-self: center; display: inline-flex; padding: 4px; border-radius: 7px; color: var(--dim); order: 99; margin-left: 4px; }
+  .starlink { font-size: 13px; white-space: nowrap; color: var(--fg); }
   .gearlink svg { width: 17px; height: 17px; display: block; }
   .gearlink:hover { color: var(--accent); background: var(--bg); }
   :root[data-theme-pick="system"] .themebtn .ic-system,
@@ -200,6 +201,7 @@
     {% if image_tag %}<span class="ver">{{ image_tag }}</span>{% endif %}</h1>
   <span class="sub">{% block subtitle %}{% endblock %}</span>
   {% block navwrap %}<nav>{% block nav %}{% endblock %}</nav>{% endblock %}
+  <a class="starlink" href="{% url 'starred' %}" title="별표 표본 — 연구에 쓰기 좋은 표본 (013)">☆ 별표</a>
   <a class="gearlink" href="{% url 'system' %}" title="설정 — 판 이력·자료 현황">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></a>
   <button type="button" class="themebtn" onclick="siriopsisTheme.cycle()" title="테마 — 시스템 · 밝게 · 어둡게">

@@ -26,10 +26,10 @@
    `(vent)` 도 넣었다(뜻은 사용자가 화면에서 보고 정한다). 운영 반입은 다음 판에서. 남은 것: `JC-*` 34 장(SP 가 아님)
 5. **별표 표본 모아 보기** (사용자 2026-10-25) — NAS `Sirius Passet Catalog` 의 엑셀(`SP-*_Catalog*.xlsx`) remarks 의 **별표 = 연구에 쓰기 좋은 표본**.
    별표가 있는 표본만 따로 모아 보는 화면. 먼저 볼 것: phyloserver 목록의 remarks(지금 `Specimen.remarks` 로 들어온다)에도 별표가 있는지 —
-   분류 정보의 원천은 phyloserver 로 정했다(CLAUDE.md). 엑셀에만 있으면 엑셀을 읽는 반입이 따로 선다
+   분류 정보의 원천은 phyloserver 로 정했다(CLAUDE.md). 엑셀에만 있으면 엑셀을 읽는 반입이 따로 선다 — 됨 (wetherilli 013, `/starred/`, `import_workbooks`)
 6. **counterpart 짝 슬랩** (사용자 2026-10-25) — 같은 엑셀에 counterpart 가 적힌 표본은 짝이 맞는 반대편 슬랩이 DB 에 같이 있다.
    한 표본을 고르면 반대쪽 표본의 자료도 함께 모아 보거나, 서로 건너가는 링크를 둔다. 실마리: `SP-2016-64&65(dorsal)` 처럼 두 슬랩을 한 장에 찍은 전경 11 장
-   (지금은 앞 번호에만 붙는다 — 짝을 알면 양쪽에 보인다)
+   (지금은 앞 번호에만 붙는다 — 짝을 알면 양쪽에 보인다) — 됨 (wetherilli 013, `Counterpart`·`_counterpart.html` 조각)
 8. **phyloserver `siriuspasset` 자료 통째로 받기** (사용자 2026-10-25 — 「다 털어와도 된다. 우리 뷰어가 그 DB 기능을 완전히 대체할 수도 있다」)
    - 요청서: NAS `temp/20261025_request_phyloserver_json_export.md` — ① `export_siriuspasset`(모든 모델·이력·사진·EPMA 파일 → NAS `phyloserver-export/<날짜>/`)
      ② 넘어가는 동안의 `GET /siriuspasset/export.json`. 사용자가 phyloserver 쪽에서 만든다

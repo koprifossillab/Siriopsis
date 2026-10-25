@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from . import browse, regroup, thumbs
+from . import browse, regroup, thumbs, workbook
 from .models import Frame, Slab, Stack
 
 PER_PAGE = 48
@@ -90,6 +90,12 @@ def slab(request, slab_no):
 
     # 슬랩 전경(009)은 표본 칸이 아니라 맨 위에 — 슬랩 자체를 찍은 사진이다
     overview = [st for st in stacks if st.kind == Stack.Kind.SLAB]
+    # 두 슬랩을 한 장에 찍은 전경(`SP-2016-64&65`)은 반입이 앞 번호에 붙인다 — 뒷 슬랩에서도 보이게 더한다 (013)
+    shared = workbook.shared_views(s)
+    first.update(_first_frames([st.id for st in shared]))
+    for st in shared:
+        st.first_frame = first.get(st.id)
+    overview += shared
     stacks = [st for st in stacks if st.kind != Stack.Kind.SLAB]
     groups = []
     for sp in s.specimens.all():
@@ -115,6 +121,33 @@ def slab(request, slab_no):
     return render(request, "specimens/slab.html", {
         "slab": s, "groups": groups, "loose": loose, "hidden": hidden, "overview": overview,
         "rep": rep, "facts": facts, "specimens": list(s.specimens.all()),
+        "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
+        # counterpart 짝 (013) — `{% include "specimens/_counterpart.html" %}` 가 그린다
+        "counterparts": _counterparts(s),
+    })
+
+
+def _counterparts(s):
+    """이 슬랩의 짝마다 상대 슬랩의 대표 컷 하나를 붙인다 — 전경 → 빛 묶음 → PTM."""
+    pairs = workbook.pairs_for(s.slab_no)
+    ids = [g["slab"].id for g in pairs if g["slab"]]
+    rank = {Stack.Kind.SLAB: 0, Stack.Kind.SERIES: 1, Stack.Kind.PTM: 2}
+    rep = {}
+    for st in sorted(Stack.objects.filter(slab_id__in=ids, copy_of__isnull=True, hidden=False).order_by("label", "piece"),
+                     key=lambda st: rank.get(st.kind, 9)):
+        rep.setdefault(st.slab_id, st.id)
+    first = _first_frames(rep.values())
+    for g in pairs:
+        g["frame"] = first.get(rep.get(g["slab"].id)) if g["slab"] else None
+    return pairs
+
+
+def starred(request):
+    """별표 표본 (013) — 엑셀 목록과 phyloserver remarks 의 ☆. 사진이 없는 표본도 줄에 낸다(슬랩이 테이블에 없음)."""
+    rows = workbook.starred()
+    mode = "grid" if request.GET.get("view") == "grid" else "list"
+    return render(request, "specimens/starred.html", {
+        "rows": rows, "mode": mode, "n_with": sum(1 for r in rows if r["slab"]),
         "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
     })
 

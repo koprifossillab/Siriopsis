@@ -85,7 +85,10 @@ class SyncTest(SafeTestCase):
             calls.append(1)
             return parse_list(LIST_HTML)
 
-        found, missing, filled, errors = sync(fetch_everything=everything)
+        def no_export(log=None):
+            raise OSError("HTTP Error 404: Not Found")      # 지금 운영의 phyloserver — export.json 이 아직 없다
+
+        found, missing, filled, errors = sync(fetch_everything=everything, fetch_whole=no_export)
         self.assertEqual(len(calls), 1)
         self.assertEqual((found, missing), (1, catalog.PAGE_WALK_OVER + 1))
 

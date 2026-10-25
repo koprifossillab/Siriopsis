@@ -1,0 +1,34 @@
+{% load specimens_extras %}
+{% comment %}
+  counterpart 짝 슬랩 (wetherilli 013) — 슬랩 화면에 끼우는 조각. context 의 `counterparts`(views._counterparts → workbook.pairs_for)를 그린다.
+  짝마다 상대 슬랩의 대표 컷 하나와 링크, 그리고 엑셀에 적힌 원문(어느 표본끼리, 출처 파일:행). 두 슬랩을 한 장에 찍은 전경도 짝으로 보인다.
+  짝이 없으면 아무것도 그리지 않는다.
+{% endcomment %}
+{% if counterparts %}
+<section class="sp counterparts">
+  <style>
+    .counterparts .cp { display: grid; grid-template-columns: 160px 1fr; gap: 10px 14px; align-items: start;
+                        padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .counterparts .cp:last-child { border-bottom: 0; }
+    .counterparts .cp .pic { display: block; width: 160px; aspect-ratio: 3 / 2; object-fit: cover; background: #000; border-radius: 6px; }
+    .counterparts .cp b a { font-size: 14px; }
+    .counterparts ul { margin: 4px 0 0; padding-left: 1.1em; font-size: 12.5px; }
+    .counterparts li .src { color: var(--dim); font-size: 11px; margin-left: 6px; }
+  </style>
+  <h3>짝 슬랩 {{ counterparts|length }} <span class="dim" style="font-size:12.5px;font-weight:400">counterpart — 한 암석을 쪼갠 마주 보는 면 (phyloserver 의 counterpart 칸, 거기서 못 읽은 슬랩은 엑셀 목록)</span></h3>
+  {% for g in counterparts %}
+  <div class="cp">
+    {% if g.slab %}<a href="{% url 'slab' g.other %}">{% if g.frame %}<img class="pic" loading="lazy" src="{% frame_url g.frame 400 %}" alt="">{% else %}<span class="pic"></span>{% endif %}</a>{% else %}<span class="pic"></span>{% endif %}
+    <div>
+      <b>{% if g.slab %}<a href="{% url 'slab' g.other %}">{{ g.other }} →</a>{% else %}{{ g.other }} <span class="dim" style="font-weight:400">사진 없음</span>{% endif %}</b>
+      {% if g.slab.horizon %}<span class="tag">층준 {{ g.slab.horizon }}</span>{% endif %}
+      {% if g.uncertain %}<span class="tag prep">불확실</span>{% endif %}
+      <ul>
+        {% for l in g.lines %}<li>{% if l.mine or l.theirs %}<span class="mono">{{ l.mine|default:"·" }} ↔ {{ l.theirs|default:"·" }}</span> {% endif %}{{ l.text }}<span class="src">{{ l.origin }} · {{ l.source }}</span></li>{% endfor %}
+        {% for st in g.views %}<li>전경 한 장에 같이 찍힘 — <a href="{% url 'stack' st.id %}">{{ st.label }}</a></li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}

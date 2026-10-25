@@ -19,6 +19,8 @@ class Slab(models.Model):
     catalog_synced_at = models.DateTimeField(null=True, blank=True)
     # phyloserver 목록에 있는 이 슬랩의 표본 글자(`A B C`) — 테이블에 없는 표본도. 글자 없는 더미를 A 에 붙일지 가린다(`bare.py`, wetherilli 012)
     catalog_letters = models.CharField(max_length=200, blank=True)
+    # phyloserver 표본 상세 화면의 counterpart 를 읽은 때 (`import_catalog --details`, wetherilli 013). 읽은 슬랩은 엑셀의 짝을 안 쓴다
+    counterpart_synced_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["slab_no"]
@@ -158,3 +160,52 @@ class EditLog(models.Model):
 
     class Meta:
         ordering = ["-at"]
+
+
+class Star(models.Model):
+    """연구에 쓰기 좋은 표본 — 엑셀 목록 remarks 의 별표(☆) (사용자 2026-10-25, wetherilli 013).
+
+    **원천은 phyloserver remarks 의 ☆**(`Specimen.remarks`)다. 엑셀의 것은 phyloserver 목록에 없는 슬랩만 메운다(`workbook.starred`).
+    이 테이블은 엑셀에서 읽은 것만이고 `import_workbooks` 가 통째로 다시 만든다. 사진이 없는 표본도 든다 — 그래서 이름을 글자로 둔다.
+    """
+    slab_no = models.CharField(max_length=32, db_index=True)
+    letter = models.CharField(max_length=8)         # 엑셀의 글자 칸이 비면 A (012)
+    stars = models.PositiveSmallIntegerField(default=1)   # ☆ 의 수 — 둘(☆☆)도 있다
+    taxon_name = models.CharField(max_length=100, blank=True)   # 엑셀의 값 — 테이블에 표본이 없을 때 보인다
+    horizon = models.CharField(max_length=100, blank=True)
+    text = models.CharField(max_length=300, blank=True)         # ☆ 가 든 칸의 원문
+    source = models.CharField(max_length=200)       # 엑셀 파일 이름
+    row = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ["slab_no", "letter"]
+
+    @property
+    def specimen_no(self):
+        return f"{self.slab_no}-{self.letter}"
+
+
+class Counterpart(models.Model):
+    """두 쪽으로 쪼갠 암석의 마주 보는 면 — 표본의 counterpart 칸에 적힌 짝 (사용자 2026-10-25, wetherilli 013).
+
+    **원천은 phyloserver 표본 상세 화면의 Counterpart 칸**이다(엑셀에서 들어가 사람이 고쳐 간다) — `import_catalog --details` 가 슬랩마다 다시 만든다.
+    엑셀(`import_workbooks`, 통째로 다시 만든다)의 것은 phyloserver 에서 읽지 못한 슬랩만 메운다(`workbook.pairs_for`).
+    **적힌 그대로 한 방향**이다(`SP-2016-4` 행의 「Counterpart of SP-2016-5」). 화면은 양쪽에서 같은 짝을 보인다.
+    글자는 적혀 있을 때만 — 적힌 행의 표본 글자(`letter`), 글에 적힌 글자(`other_letter`). 슬랩이 테이블에 없을 수 있어 이름을 글자로 둔다.
+    """
+    class Origin(models.TextChoices):
+        PHYLOSERVER = "phyloserver", "phyloserver"
+        EXCEL = "excel", "엑셀"
+
+    origin = models.CharField(max_length=16, choices=Origin.choices, default=Origin.EXCEL)
+    slab_no = models.CharField(max_length=32, db_index=True)
+    letter = models.CharField(max_length=8, blank=True)
+    other_slab_no = models.CharField(max_length=32, db_index=True)
+    other_letter = models.CharField(max_length=8, blank=True)
+    uncertain = models.BooleanField(default=False)  # 「?」·maybe·probable·CHECK 가 붙은 것
+    text = models.CharField(max_length=300)         # 원문
+    source = models.CharField(max_length=200)       # 엑셀 파일 이름, phyloserver 면 표본 번호
+    row = models.PositiveIntegerField()             # 엑셀 행 번호, phyloserver 면 표본 상세 id
+
+    class Meta:
+        ordering = ["slab_no", "letter", "other_slab_no"]
