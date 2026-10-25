@@ -27,11 +27,11 @@
 - **반입이 사람의 손을 덮지 않게** — 손댄 묶음 표시, 반입은 그 묶음을 건너뛰고 새 컷은 「묶이지 않은 컷」으로. 같은 커밋에서 `save_series`·지우기를 바꾼다
 - 그때부터 백업이 계약 — 운영 전에
 
-## paleolab 에 길 (`v0.1.0`)
+## 운영 (v0.1.0 다음)
 
-- Cropobite 에서 `deploy/srv/docker-compose.yml`(127.0.0.1:8100, NAS 읽기 전용 마운트)·`deploy/nginx/Siriopsis-subpath.conf`·`deploy/host/{install,deploy,smoke}.sh`
-- paleoadmin 요청 md(`N:\Siriopsis\temp`): `/srv/Siriopsis` · nginx · paleolab 첫 화면 한 줄
-- 반입을 cron 으로(새 사진) · 백업 + `/healthz` 백업 나이 · 소개 화면 최소판
+- 반입을 cron 으로(새 사진) — 지금은 손으로 `manage`
+- 백업 + `/healthz` 백업 나이 — 묶음 고치기와 같은 때
+- Docker Hub secret 이 생기면 git 태그로 판 내기
 
 ## 그 밖
 

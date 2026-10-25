@@ -1,9 +1,9 @@
 # HANDOFF
 
-**2026-10-25** · 판 없음 · 반입 끝, **뷰어 첫 판**([005](devlog/20261025_wetherilli_005_viewer.md)) — 카탈로그 빛 묶음 8,876 과 PTM 22 벌을 화면에서 넘겨 본다
+**2026-10-25** · **`v0.1.0` 운영 중** — http://paleolab/Siriopsis/ ([007](devlog/20261025_wetherilli_007_paleolab_route.md)). 반입 끝, 뷰어는 DiaRUGA 모양([006](devlog/20261025_wetherilli_006_diaruga_look.md)).
 ([wetherilli 002](devlog/20261025_wetherilli_002_light_stacks_to_tables.md), [003](devlog/20261025_wetherilli_003_catalog_light_series.md), [004](devlog/20261025_wetherilli_004_keep_copies.md) — 사본도 넣었다).
 **자료가 맞는지 확인을 기다리며 멈추지 않는다** — 사용자는 데이터가 옳다고 보고 틀을 짜는 중이다. 아래 §0 은 막는 일이 아니다.
-다음은 **paleolab 에 길**(`v0.1.0`, P01 3단계) 또는 **정밀 맞춤**(GPU) 또는 **묶음 고치기** — 사용자가 화면을 보고 고른다.
+다음은 **정밀 맞춤**(GPU) 또는 **묶음 고치기**(그때 백업을 켠다) — 사용자가 화면을 보고 고른다.
 
 ## 0. 사람이 정할 것
 
@@ -11,7 +11,7 @@
   `0577a`·`0577b` 의 소문자는 표본 글자인가 마주 조각인가 · SP-2011 두 슬랩은 phyloserver 에 없다 — 분류군은 어디서
 - **phyloserver 에 없는 슬랩 393** — NAS `Siriopsis/survey/20261025_not_in_phyloserver.csv`. 목록에 더할 것인가
 - **사본 폴더의 정본 규칙**(003 §한 것) — 컷 수 → 사본 표시 폴더 아님 → 얕은 경로. 사본도 들어가 있어(004) 뷰어에서 보고 정하면 된다
-- Docker Hub `koprifossillab/siriopsis` 와 secret — 첫 `v*` 태그 전에(이 서버에서만 굽는다면 없어도 된다)
+- Docker Hub `koprifossillab/siriopsis` 와 secret — git `v*` 태그를 밀기 전에(지금은 태그 없이 이 서버에서 굽는다)
 
 ## 1. 지금 있는 것
 
@@ -28,7 +28,7 @@
 | 자료 | NAS `/nfs/temp-share/Sirius Passet Catalog/`(읽기만). 작업 공간 `/nfs/temp-share/Siriopsis/` — 조사 표는 `survey/`, paleoadmin 요청은 `temp/` |
 | GPU | RTX 3060 Ti 8 GB — 무거운 분석(맞춤)은 여기서(사용자) |
 | 라이선스 | AGPL-3.0 |
-| 운영 | **없다.** 자리만 — `/srv/Siriopsis`, nginx `/Siriopsis/`, 포트 8100·8101 |
+| 운영 | `/srv/Siriopsis`(compose, `127.0.0.1:8100`, 이미지는 이 서버에서 굽는다) · nginx `/Siriopsis/` · 첫 화면 카드. 판 올리기: 굽기 → `.env` 의 `IMAGE_TAG` → `docker compose up -d web`. 반입은 `docker compose run --rm manage <명령>`(약 8 분). **백업 없음** — DB 는 반입으로 다시 만든다 |
 
 ## 2. 다음
 
