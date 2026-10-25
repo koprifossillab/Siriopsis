@@ -1,16 +1,15 @@
 # HANDOFF
 
-**2026-10-25** · 판 없음 · 1단계 끝 — 빛 더미 22 벌이 테이블에 있다([wetherilli 002](devlog/20261025_wetherilli_002_light_stacks_to_tables.md)).
-다음은 **2단계 — 빛 더미 뷰어**([P01](devlog/20261025_wetherilli_P01_stages.md)).
+**2026-10-25** · 판 없음 · 반입 끝 — 카탈로그 빛 묶음 8,876 과 PTM 22 벌이 테이블에 있다
+([wetherilli 002](devlog/20261025_wetherilli_002_light_stacks_to_tables.md), [003](devlog/20261025_wetherilli_003_catalog_light_series.md)).
+다음은 **정밀 맞춤**(GPU) → **뷰어**([P01](devlog/20261025_wetherilli_P01_stages.md) 2단계 — 003 으로 순서가 바뀌었다).
 
 ## 0. 사람이 정할 것
 
-- **이름에 표본 글자가 없는 더미의 표본** — 지금 표본이 붙은 것은 `SP-2016-52A`(무처리 전체) 하나뿐이다(002 §결과)
-  - `SP-2016-52`(무처리 확대 · 흰 코팅 전체·확대) — `52A` 와 같은 A(*Kerygmachela*)인가
-  - `SP-2016-494`(넷) — A(*Kerygmachela*)인가 (B·C 는 *Isoxys*)
-  - `SP-2016-601`(둘) — phyloserver 에 A 하나뿐이다
-  - `SP-2011-0577a`·`0577b` — 소문자 a/b 는 표본 글자인가, 마주 조각(part/counterpart)인가
-  - `SP-2011-0203`·`0577` 은 phyloserver 목록에 없다 — 분류군을 어디서 얻나
+- **PTM 더미의 표본** — 이름에 글자가 없는 PTM 21 벌(002 §결과): `52`(셋) = `52A` 와 같은 A? · `494`(넷) = A? · `601`(둘) = A(목록에 하나뿐)? ·
+  `0577a`·`0577b` 의 소문자는 표본 글자인가 마주 조각인가 · SP-2011 두 슬랩은 phyloserver 에 없다 — 분류군은 어디서
+- **phyloserver 에 없는 슬랩 393** — NAS `Siriopsis/survey/20261025_not_in_phyloserver.csv`. 목록에 더할 것인가
+- **사본 폴더의 정본 규칙**(003 §한 것) — 컷 수 → 사본 표시 폴더 아님 → 얕은 경로. 다르게 정하면 규칙을 바꾼다
 - Docker Hub `koprifossillab/siriopsis` 와 secret — 첫 `v*` 태그 전에(이 서버에서만 굽는다면 없어도 된다)
 
 ## 1. 지금 있는 것
@@ -18,13 +17,15 @@
 | | 지금 |
 |---|---|
 | 웹 | Django 5.2 · `core`(첫 화면 · `/healthz` — 더미·컷 수, 컷 0 이면 degraded) · `specimens`(테이블·반입, 화면 없음) |
-| 반입 | `scan_light_stacks`(NAS `.lp` → Stack·Frame, 읽기만) · `import_catalog`(phyloserver 목록 → 층준·분류군) |
-| 시험 | 18 (`python web/manage.py test core specimens`) |
+| 반입 | `scan_light_stacks`(PTM, `.lp`) · `scan_light_series`(카탈로그 빛 묶음, 정본 고르기) · `import_catalog`(phyloserver 목록) — 모두 원본은 읽기만 |
+| 테이블 | 개발 DB: 슬랩 4,304 · 표본 6,700(분류군 6,653) · 묶음 8,898(`series` 8,876 · `ptm` 22) · 컷 60,874 |
+| 시험 | 25 (`python web/manage.py test core specimens`) |
 | 이미지·CI | `deploy/Dockerfile` · `.github/workflows/test.yml`(시험 → 굽기, `v*` 태그만 push) |
-| 환경 | venv `~/venv/Siriopsis`, `workon sp`, `.guides` → `../kopri-devdocs/guides`, 개발 DB `Siriopsis.db`(gitignore — 반입 두 명령으로 다시 만든다) |
-| 자료 | NAS `/nfs/temp-share/Sirius Passet Catalog/`(읽기만). NAS 작업 공간 `/nfs/temp-share/Siriopsis/` — paleoadmin 요청은 `temp/` 에 md |
+| 환경 | venv `~/venv/Siriopsis`, `workon sp`, `.guides` 링크, 개발 DB `Siriopsis.db`(gitignore — 반입 세 명령으로 7 분이면 다시 만든다) |
+| 자료 | NAS `/nfs/temp-share/Sirius Passet Catalog/`(읽기만). 작업 공간 `/nfs/temp-share/Siriopsis/` — 조사 표는 `survey/`, paleoadmin 요청은 `temp/` |
+| GPU | RTX 3060 Ti 8 GB — 무거운 분석(맞춤)은 여기서(사용자) |
 | 라이선스 | AGPL-3.0 |
-| 운영 | **없다.** 자리만 정했다 — `/srv/Siriopsis`, nginx `/Siriopsis/`, 포트 8100(운영)·8101(시험) |
+| 운영 | **없다.** 자리만 — `/srv/Siriopsis`, nginx `/Siriopsis/`, 포트 8100·8101 |
 
 ## 2. 다음
 

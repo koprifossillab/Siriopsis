@@ -1,4 +1,5 @@
 from core.tests.base import SafeTestCase
+from specimens import catalog
 from specimens.catalog import parse_list, sync
 from specimens.models import Slab, Specimen
 
@@ -73,3 +74,18 @@ class SyncTest(SafeTestCase):
 
         found, missing, filled, errors = sync(fetch=fetch)
         self.assertEqual((found, len(errors)), (0, 1))
+
+    def test_many_slabs_read_whole_list_once(self):
+        for n in range(catalog.PAGE_WALK_OVER + 1):
+            Slab.objects.create(slab_no=f"SP-2017-{n:04d}", year=2017)
+        Slab.objects.create(slab_no="SP-2016-0052", year=2016)
+        calls = []
+
+        def everything(log=None):
+            calls.append(1)
+            return parse_list(LIST_HTML)
+
+        found, missing, filled, errors = sync(fetch_everything=everything)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual((found, missing), (1, catalog.PAGE_WALK_OVER + 1))
+

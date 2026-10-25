@@ -114,7 +114,7 @@ def read_stack(lp_path, root):
     return {
         "name": name,
         "stack": {
-            "kind": Stack.Kind.LIGHT,
+            "kind": Stack.Kind.PTM,
             "preparation": _preparation(rel_dir),
             "view": Stack.View.ZOOM if name["zoom"] else Stack.View.WHOLE,
             "label": label_of(stem),
@@ -145,7 +145,8 @@ def save_stack(info):
         specimen, _ = Specimen.objects.get_or_create(slab=slab, letter=name["letter"])
 
     values = dict(info["stack"], slab=slab)
-    stack = Stack.objects.filter(source_dir=values["source_dir"]).first()
+    stack = Stack.objects.filter(source_dir=values["source_dir"], kind=values["kind"],
+                                 label=values["label"]).first()
     if stack is None:
         stack = Stack.objects.create(specimen=specimen, **values)
         Frame.objects.bulk_create(Frame(stack=stack, **fr) for fr in info["frames"])

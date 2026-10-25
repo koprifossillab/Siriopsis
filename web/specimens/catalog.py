@@ -100,6 +100,29 @@ def fetch_slab(slab_no, base=None, timeout=20):
     return parse_list(html).get(slab_no)
 
 
+def fetch_all(base=None, timeout=20, delay=0.3, log=None, max_pages=1000):
+    """목록을 쪽마다 넘기며 모두 읽는다 (쪽마다 슬랩 20). 슬랩이 많을 때 슬랩마다 묻는 것보다 요청이 스무 배 적다.
+
+    마지막 쪽 뒤를 물으면 phyloserver(Django Paginator.get_page)는 마지막 쪽을 다시 준다 —
+    새 슬랩이 없는 쪽이 나오면 끝이다. 남의 운영 서비스라 요청 사이를 띄운다.
+    """
+    import time
+    base = (base or settings.CATALOG_URL).rstrip("/") + "/"
+    out = {}
+    for page in range(1, max_pages + 1):
+        url = base + "specimen_list/?" + urllib.parse.urlencode({"page": page})
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            got = parse_list(resp.read().decode("utf-8", errors="replace"))
+        new = set(got) - set(out)
+        if not new:
+            break
+        out.update(got)
+        if log and page % 50 == 0:
+            log(f"목록 {page} 쪽 · 슬랩 {len(out)}")
+        time.sleep(delay)
+    return out
+
+
 @transaction.atomic
 def apply_slab(slab, data, now=None):
     """한 슬랩의 목록 값을 테이블에 옮긴다. 목록에 없는 표본은 만들지 않는다 — 우리가 가진 표본만 채운다.
@@ -129,11 +152,28 @@ def apply_slab(slab, data, now=None):
     return n
 
 
-def sync(slabs=None, fetch=fetch_slab, log=None):
-    """테이블의 슬랩마다 목록을 읽어 채운다. 돌려주는 값: (찾은 슬랩, 못 찾은 슬랩, 채운 표본, 오류 목록)."""
+# 슬랩이 이보다 많으면 목록 전체를 쪽마다 읽는다 (fetch_all)
+PAGE_WALK_OVER = 30
+
+
+def sync(slabs=None, fetch=None, log=None, fetch_everything=fetch_all):
+    """테이블의 슬랩마다 목록 값을 채운다. 돌려주는 값: (찾은 슬랩, 못 찾은 슬랩, 채운 표본, 오류 목록).
+
+    슬랩이 적으면 슬랩마다 묻고(fetch_slab), 많으면 목록 전체를 한 번 읽는다(fetch_all).
+    """
+    slabs = list(slabs if slabs is not None else Slab.objects.all())
     found = missing = filled = 0
     errors = []
-    for slab in (slabs if slabs is not None else Slab.objects.all()):
+    if fetch is None:
+        if len(slabs) > PAGE_WALK_OVER:
+            try:
+                everything = fetch_everything(log=log)
+            except OSError as e:
+                return 0, 0, 0, [f"목록 전체: {e}"]
+            fetch = everything.get
+        else:
+            fetch = fetch_slab
+    for slab in slabs:
         try:
             data = fetch(slab.slab_no)
         except OSError as e:

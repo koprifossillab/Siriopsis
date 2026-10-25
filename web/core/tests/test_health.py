@@ -13,7 +13,7 @@ from .base import SafeTestCase
 
 def make_frame():
     slab = Slab.objects.create(slab_no="SP-2016-0052", year=2016)
-    stack = Stack.objects.create(slab=slab, kind="light", preparation="none", view="whole",
+    stack = Stack.objects.create(slab=slab, kind="ptm", preparation="none", view="whole",
                                  label="SP-2016-52A", source_dir="x", lp_file="x.lp")
     Frame.objects.create(stack=stack, seq=0, path="x/IMG_1.JPG")
 

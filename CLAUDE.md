@@ -3,7 +3,9 @@
 **Siriopsis** — 북그린란드 시리우스 파셋(Sirius Passet, 캄브리아기 제3세) 화석의 이미지 뷰어.
 **한 표본을 여러 방법으로 본다** — DiaRUGA 가 한 시야를 여러 초점으로 보듯, 여기서는 한 표본을
 여러 빛 방향·여러 처리(무처리·흰 코팅·에탄올·물 …)로 찍은 이미지를 한 자리에서 넘겨 본다.
-첫 이미지 유형은 **빛 방향 더미**(RTI 촬영 — 표본과 카메라를 고정하고 빛만 50 방향으로 바꿔 찍은 묶음).
+첫 이미지 유형은 **빛을 달리해 찍은 묶음**이고 두 종류다(사용자 2026-10-25) — **PTM 촬영**(돔 장비로 50 방향, 빛 방향 파일 `.lp` 가
+같이 있다, 22 벌)과 **카탈로그 빛 묶음**(`SP-2022-131-1 … -6` — 표본 이름 뒤 번호가 빛을 달리한 컷, 빛 방향 값 없음, 약 9천 묶음).
+**둘은 다르게 건다** — 테이블은 같은 Stack 이고 `kind` 가 `ptm`·`series` 로 가른다.
 paleo-server 에서 도는 웹 앱(Django + Docker + SQLite + gunicorn + nginx 서브경로).
 **NAS 원본은 읽기만 한다.** 문서는 한국어로 쓴다 — 커밋 메시지, devlog, 주석 모두.
 
@@ -32,7 +34,7 @@ DB(`Siriopsis.db`). **기술이 소문자를 강제하는 자리만 `siriopsis`*
 
 **말** (자료의 엑셀 목록을 따른다 — P01 에서 정했다):
 슬랩(Slab = `SP-2016-47`, 암석 한 덩이) · 표본(Specimen = 슬랩 안의 글자 `A`·`K` …, 화석 하나) ·
-컷(사진 한 장) · **더미**(Stack = 한 표본을 같은 자리에서 한 가지 축만 바꿔 찍은 정렬된 컷들 — 빛 더미, 나중에 초점 더미) ·
+컷(사진 한 장) · **더미**(Stack = 한 대상을 같은 자리에서 한 가지 축만 바꿔 찍은 컷들 — 종류는 **PTM**(`ptm`)과 **빛 묶음**(`series`), 나중에 초점 더미) ·
 처리(Preparation = 무처리·흰 코팅·마그네슘 코팅·에탄올·물). DiaRUGA 의 「시야」 자리가 여기서는 「더미」다.
 
 ## 작업 방식
@@ -68,8 +70,10 @@ DB(`Siriopsis.db`). **기술이 소문자를 강제하는 자리만 `siriopsis`*
 **이 프로젝트의 NAS 작업 공간은 `/nfs/temp-share/Siriopsis/`**(사용자 PC `N:\Siriopsis`) — 사람에게 보일 자료(밀착 인화지·점검표)·
 paleoadmin 요청(`temp/`)·사람이 넘겨줄 자료를 여기에 둔다. 만드는 파일·폴더 이름은 영문. 사정은 [P01](devlog/20261025_wetherilli_P01_stages.md) §자료.
 
-- `SP-<연도> 샘플별/SP-<연도>(<번호 구간>)/SP-<연도>-<슬랩><표본>-<컷>.JPG` — 카탈로그 사진(약 8만 장). 컷끼리 구도가 달라 그대로는 더미가 아니다
-- `SP-2016 샘플별/6D 외/PTM{, white coated}/<표본>/IMG_*.JPG + <표본>.lp + <표본>.ptm` — **빛 더미 22 벌**(벌마다 50 컷 + 빛 벡터). 1단계 자료
+- `SP-<연도> 샘플별/SP-<연도>(<번호 구간>)/SP-<연도>-<슬랩><표본>-<번호>.JPG` — **카탈로그 빛 묶음**. 번호가 빛을 달리한 컷이다.
+  같은 이름이 여러 폴더에 사본으로 있다 — 정본은 `specimens/lightseries.py` 의 규칙이 고른다. `output/` 은 줄인 사본이라 읽지 않는다.
+  `(dorsal)`·`(vent)`(슬랩 전경), `(ethanol)`·`(water)`(액침)이 붙은 것은 빛 묶음이 아니다(아직 안 읽는다)
+- `SP-2016 샘플별/6D 외/PTM{, white coated}/<표본>/IMG_*.JPG + <표본>.lp + <표본>.ptm` — **PTM 촬영 22 벌**(벌마다 50 컷 + 빛 벡터)
 - 목록 엑셀(`SP-*_Catalog*.xlsx`) — 옛 사본. **분류 정보는 phyloserver 에서 읽는다**(아래)
 - `@eaDir`·`Thumbs.db`·`*@SynoEAStream` 은 NAS 가 만든 것 — 읽지 않는다
 
@@ -86,7 +90,7 @@ python web/manage.py test core specimens   # 시험 — 고치고 나면 이것�
 ```
 
 requirements 는 `-web`(이미지에 들어가는 것) · `-dev`(시험만) · 둘을 묶는 `requirements.txt`.
-무거운 분석 라이브러리(맞춤·PTM 계산)가 들어오면 `-web` 에 넣지 말고 갈래 파일을 따로 만든다(ForGIA 의 web/pipeline 경계).
+무거운 분석 라이브러리(맞춤·PTM 계산)가 들어오면 — 무거운 이미지 분석은 GPU(paleo-server RTX 3060 Ti 8 GB)를 쓴다(사용자) — `-web` 에 넣지 말고 갈래 파일을 따로 만든다(ForGIA 의 web/pipeline 경계).
 
 **자료도 DB 도 저장소 안에 없다.** 위치는 `.env`(`.env.template` 참고). 운영 자리는 정해 두었다:
 
@@ -103,8 +107,9 @@ nginx 80 의 /Siriopsis/ → 127.0.0.1:8100 (운영) · 8101 (시험)
 export SIRIOPSIS_DB=$PWD/Siriopsis.db      # 운영 /srv/Siriopsis/db 를 가리키지 않는다
 export IMAGE_TAG="dev $(git rev-parse --short HEAD)"
 python web/manage.py migrate
-python web/manage.py scan_light_stacks --under "SP-2016 샘플별/6D 외"   # 빛 더미 (NAS 읽기만, 몇 번을 돌려도 같다. 전체는 30초)
-python web/manage.py import_catalog          # phyloserver 에서 층준·분류군
+python web/manage.py scan_light_stacks --under "SP-2016 샘플별/6D 외"   # PTM 촬영 (NAS 읽기만, 몇 번을 돌려도 같다)
+python web/manage.py scan_light_series        # 카탈로그 빛 묶음 (처음엔 EXIF 6만 장으로 몇 분, 다시 돌리면 새 컷만)
+python web/manage.py import_catalog          # phyloserver 에서 층준·분류군 (슬랩이 많으면 목록 211 쪽을 한 번 넘긴다)
 PORT=$(for p in $(seq 8051 8059); do ss -ltn | grep -q ":$p " || { echo $p; break; }; done)
 setsid nohup python web/manage.py runserver 0.0.0.0:$PORT > /tmp/siriopsis-runserver.log 2>&1 < /dev/null &
 echo "http://172.16.116.98:$PORT/"

@@ -47,16 +47,22 @@ class Specimen(models.Model):
 
 
 class Stack(models.Model):
-    """한 대상을 같은 자리에서 한 가지 축만 바꿔 찍은, 서로 맞아 있는 컷들.
+    """한 대상을 같은 자리에서 한 가지 축만 바꿔 찍은 컷들.
 
-    지금 종류는 빛 더미 하나다. 다음 유형(초점 더미·맞춘 카탈로그 묶음)도 이 테이블에 `kind` 로 들어온다.
+    종류가 둘이다 (사용자 2026-10-25, wetherilli 003):
+    - `ptm` — PTM 촬영. 돔 장비로 50 컷, 빛 방향 단위 벡터(`.lp`)와 `.ptm` 이 같이 있다. 삼각대라 픽셀이 맞다
+    - `series` — 카탈로그 빛 묶음. `SP-2022-131-1 … -6` 처럼 표본 이름 뒤 번호가 빛을 달리해 찍은 컷이다.
+      빛 방향 값은 없고, 구도가 조금씩 어긋날 수 있다(맞춤은 다음 단계)
+    다음 유형(초점 더미 등)도 이 테이블에 `kind` 로 들어온다.
     """
     class Kind(models.TextChoices):
-        LIGHT = "light", "빛 더미"
+        PTM = "ptm", "PTM"
+        SERIES = "series", "빛 묶음"
 
     class Preparation(models.TextChoices):
         NONE = "none", "무처리"
         WHITE_COATED = "white_coated", "흰 코팅"
+        MG_COATED = "mg_coated", "마그네슘 코팅"
 
     class View(models.TextChoices):
         WHOLE = "whole", "전체"
@@ -68,11 +74,13 @@ class Stack(models.Model):
     kind = models.CharField(max_length=16, choices=Kind.choices)
     preparation = models.CharField(max_length=16, choices=Preparation.choices)
     view = models.CharField(max_length=8, choices=View.choices)
-    # 확대 표시 Z 를 뗀 원래 이름(`SP-2016-52A`, `SP-2011-0577a`) — 같은 대상의 더미끼리 같다
+    # 원래 이름. PTM 은 확대 표시 Z 를 뗀 것(`SP-2016-52A`), 빛 묶음은 번호를 뗀 것(`SP-2022-131`)
     label = models.CharField(max_length=64)
-    # SOURCE_ROOT 기준 상대경로. 원본은 읽기만 한다
-    source_dir = models.CharField(max_length=500, unique=True)
-    lp_file = models.CharField(max_length=200)
+    # SOURCE_ROOT 기준 상대경로. 원본은 읽기만 한다. 빛 묶음은 한 폴더에 여럿이 든다 — 열쇠는 (폴더, 종류, 이름)
+    source_dir = models.CharField(max_length=500)
+    # 같은 이름·처리의 묶음이 다른 폴더에도 있었던 수(사본). 정본 고르기는 lightseries.py
+    other_copies = models.PositiveSmallIntegerField(default=0)
+    lp_file = models.CharField(max_length=200, blank=True)
     ptm_file = models.CharField(max_length=200, blank=True)
     n_frames = models.PositiveSmallIntegerField(default=0)
     width = models.PositiveIntegerField(default=0)
@@ -81,16 +89,19 @@ class Stack(models.Model):
     captured_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ["slab__slab_no", "label", "preparation", "view"]
+        ordering = ["slab__slab_no", "label", "kind", "preparation", "view"]
+        constraints = [models.UniqueConstraint(fields=["source_dir", "kind", "label"], name="stack_source")]
 
     def __str__(self):
         return f"{self.label} · {self.get_preparation_display()} · {self.get_view_display()}"
 
 
 class Frame(models.Model):
-    """더미의 컷 한 장. 빛 더미에서는 빛 방향 단위 벡터(`.lp` 의 x y z)를 갖는다."""
+    """더미의 컷 한 장. PTM 은 빛 방향 단위 벡터(`.lp` 의 x y z)를, 빛 묶음은 파일 이름의 컷 번호를 갖는다."""
     stack = models.ForeignKey(Stack, on_delete=models.CASCADE, related_name="frames")
-    seq = models.PositiveSmallIntegerField()        # .lp 의 줄 순서(0부터)
+    seq = models.PositiveSmallIntegerField()        # 0부터. PTM 은 .lp 줄 순서, 빛 묶음은 컷 번호 순서
+    shot_no = models.PositiveIntegerField(null=True, blank=True)   # 빛 묶음 파일 이름의 번호(`-6`)
+    captured_at = models.DateTimeField(null=True, blank=True)
     path = models.CharField(max_length=500)          # SOURCE_ROOT 기준 상대경로
     width = models.PositiveIntegerField(default=0)
     height = models.PositiveIntegerField(default=0)
