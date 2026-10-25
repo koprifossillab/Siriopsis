@@ -88,6 +88,9 @@ def slab(request, slab_no):
     for st in stacks:
         st.first_frame = first.get(st.id)
 
+    # 슬랩 전경(009)은 표본 칸이 아니라 맨 위에 — 슬랩 자체를 찍은 사진이다
+    overview = [st for st in stacks if st.kind == Stack.Kind.SLAB]
+    stacks = [st for st in stacks if st.kind != Stack.Kind.SLAB]
     groups = []
     for sp in s.specimens.all():
         mine = [st for st in stacks if st.specimen_id == sp.id]
@@ -98,7 +101,7 @@ def slab(request, slab_no):
     for st in hidden:
         st.first_frame = first.get(st.id)
     return render(request, "specimens/slab.html", {
-        "slab": s, "groups": groups, "loose": loose, "hidden": hidden,
+        "slab": s, "groups": groups, "loose": loose, "hidden": hidden, "overview": overview,
         "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
     })
 

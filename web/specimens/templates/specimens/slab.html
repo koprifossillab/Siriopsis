@@ -29,6 +29,12 @@
 </div>
 <p class="meta-line mono">표본 {{ groups|length }}{% if loose %} · 표본 글자 없는 더미 {{ loose|length }}{% endif %}</p>
 
+{% if overview %}
+<section class="sp">
+  <h3>슬랩 전경 <span class="dim" style="font-size:12.5px;font-weight:400">슬랩 자체를 찍은 사진 (dorsal)</span></h3>
+  <div class="grid">{% for st in overview %}{% include "specimens/_stackcard.html" %}{% endfor %}</div>
+</section>
+{% endif %}
 {% for g in groups %}
 <section class="sp">
   <h3>{{ g.specimen.specimen_no }}

@@ -50,7 +50,8 @@ def slab_rows(slabs):
         series=Count("id", filter=Q(kind=Stack.Kind.SERIES, copy_of__isnull=True)),
         ptm=Count("id", filter=Q(kind=Stack.Kind.PTM, copy_of__isnull=True)),
         copies=Count("id", filter=Q(copy_of__isnull=False)),
-        frames=Sum("n_frames", filter=Q(copy_of__isnull=True)),
+        # 컷 수는 빛을 달리한 컷만 — 슬랩 전경(009)은 세지 않는다
+        frames=Sum("n_frames", filter=Q(copy_of__isnull=True) & ~Q(kind=Stack.Kind.SLAB)),
         first=Min("captured_at"),
     )}
     specs = defaultdict(list)

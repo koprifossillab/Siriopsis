@@ -53,11 +53,13 @@ class Stack(models.Model):
     - `ptm` — PTM 촬영. 돔 장비로 50 컷, 빛 방향 단위 벡터(`.lp`)와 `.ptm` 이 같이 있다. 삼각대라 픽셀이 맞다
     - `series` — 카탈로그 빛 묶음. `SP-2022-131-1 … -6` 처럼 표본 이름 뒤 번호가 빛을 달리해 찍은 컷이다.
       빛 방향 값은 없고, 구도가 조금씩 어긋날 수 있다(맞춤은 다음 단계)
+    - `slab` — 슬랩 전경(`SP-2016-694(dorsal).JPG`). 표본이 아니라 슬랩 자체를 찍은 사진이라 표본에 안 붙는다(wetherilli 009)
     다음 유형(초점 더미 등)도 이 테이블에 `kind` 로 들어온다.
     """
     class Kind(models.TextChoices):
         PTM = "ptm", "PTM"
         SERIES = "series", "빛 묶음"
+        SLAB = "slab", "슬랩 전경"
 
     class Preparation(models.TextChoices):
         NONE = "none", "무처리"

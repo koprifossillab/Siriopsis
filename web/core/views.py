@@ -162,6 +162,7 @@ def system(request):
     stacks = Stack.objects.aggregate(
         series=Count("id", filter=Q(kind=Stack.Kind.SERIES, copy_of__isnull=True)),
         ptm=Count("id", filter=Q(kind=Stack.Kind.PTM)),
+        slabview=Count("id", filter=Q(kind=Stack.Kind.SLAB, copy_of__isnull=True)),
         copies=Count("id", filter=Q(copy_of__isnull=False)))
     stats = {
         "slabs": Slab.objects.count(),
