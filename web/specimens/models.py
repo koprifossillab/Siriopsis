@@ -83,6 +83,13 @@ class Stack(models.Model):
     copy_of = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True,
                                 related_name="copies")
     other_copies = models.PositiveSmallIntegerField(default=0)
+    # 사람이 고친 묶음 (wetherilli 008, `regroup.py`). **반입은 손댄 묶음을 다시 만들지 않는다** — 값도 컷도 그대로 두고,
+    # 손댄 뒤 폴더에 새로 생긴 컷만 같은 이름의 다른 조각으로 넣는다. 반입으로 다시 만들 수 없는 값이라 백업 대상이다
+    edited_at = models.DateTimeField(null=True, blank=True)
+    # 지운 묶음. 행을 지우면 다음 반입이 같은 폴더·이름에서 도로 만든다 — 그래서 숨긴다
+    hidden = models.BooleanField(default=False)
+    # 가르기로 생긴 조각 번호. 반입이 만든 묶음은 0, 가른 조각과 손댄 뒤 새로 찾은 컷은 1, 2, …
+    piece = models.PositiveSmallIntegerField(default=0)
     lp_file = models.CharField(max_length=200, blank=True)
     ptm_file = models.CharField(max_length=200, blank=True)
     n_frames = models.PositiveSmallIntegerField(default=0)
@@ -93,10 +100,15 @@ class Stack(models.Model):
 
     class Meta:
         ordering = ["slab__slab_no", "label", "kind", "preparation", "view"]
-        constraints = [models.UniqueConstraint(fields=["source_dir", "kind", "label"], name="stack_source")]
+        constraints = [models.UniqueConstraint(fields=["source_dir", "kind", "label", "piece"], name="stack_source")]
 
     def __str__(self):
         return f"{self.label} · {self.get_preparation_display()} · {self.get_view_display()}"
+
+    @property
+    def is_leftover(self):
+        """손댄 묶음의 폴더에서 반입이 새로 찾은 컷 — 사람이 아직 안 본 조각."""
+        return self.piece > 0 and self.edited_at is None
 
 
 class Frame(models.Model):
@@ -111,6 +123,8 @@ class Frame(models.Model):
     light_x = models.FloatField(null=True, blank=True)
     light_y = models.FloatField(null=True, blank=True)
     light_z = models.FloatField(null=True, blank=True)
+    # 지운 컷 (wetherilli 008). 파일은 NAS 에 그대로 있다 — 행을 남겨야 반입이 「새 컷」으로 도로 넣지 않는다
+    hidden = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["stack", "seq"]
@@ -129,3 +143,14 @@ class Frame(models.Model):
         if self.light_z is None:
             return None
         return math.degrees(math.asin(max(-1.0, min(1.0, self.light_z))))
+
+
+class EditLog(models.Model):
+    """사람이 묶음을 고친 기록 (wetherilli 008). 무엇을 했고 어느 컷이 어디로 갔는지 — 되짚을 때 쓴다."""
+    at = models.DateTimeField(auto_now_add=True)
+    action = models.CharField(max_length=16)        # split · merge · delete · restore · hide_frame · show_frame
+    stack = models.ForeignKey(Stack, on_delete=models.SET_NULL, null=True, related_name="edit_logs")
+    detail = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-at"]

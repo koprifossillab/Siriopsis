@@ -3,6 +3,6 @@
   {% if st.first_frame %}<img class="pic" loading="lazy" src="{% frame_url st.first_frame 400 %}" alt="">{% else %}<span class="pic"></span>{% endif %}
   <span class="meta"><b>{{ st.label }}</b>
     <span class="sub">{{ st.n_frames }}컷{% if st.captured_at %} · {{ st.captured_at|date:"Y-m-d" }}{% endif %}</span>
-    <span class="tags"><span class="tag {{ st.kind }}">{{ st.get_kind_display }}</span>{% if st.preparation != 'none' %}<span class="tag prep">{{ st.get_preparation_display }}</span>{% endif %}{% if st.view == 'zoom' %}<span class="tag">확대</span>{% endif %}{% if st.other_copies %}<span class="tag copy">사본 {{ st.other_copies }}</span>{% endif %}</span>
+    <span class="tags"><span class="tag {{ st.kind }}">{{ st.get_kind_display }}</span>{% if st.preparation != 'none' %}<span class="tag prep">{{ st.get_preparation_display }}</span>{% endif %}{% if st.view == 'zoom' %}<span class="tag">확대</span>{% endif %}{% if st.other_copies %}<span class="tag copy">사본 {{ st.other_copies }}</span>{% endif %}{% if st.piece %}<span class="tag">조각 {{ st.piece }}</span>{% endif %}{% if st.is_leftover %}<span class="tag prep">새로 찾은 컷</span>{% elif st.edited_at %}<span class="tag">고침</span>{% endif %}</span>
   </span>
 </a>

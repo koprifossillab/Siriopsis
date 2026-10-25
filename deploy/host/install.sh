@@ -1,6 +1,7 @@
 #!/bin/bash
 # Siriopsis 를 http://paleolab/Siriopsis/ 에 처음 얹는다. **sudo 로 한 번** 돌린다 (몇 번 돌려도 같다).
 # Cropobite deploy/host/install.sh 에서 왔다 — 자동 반입 cron 은 아직 없다(사진이 새로 들어오는 일이 드물다).
+# 백업 cron(/etc/cron.d/Siriopsis)은 v0.2.0 부터 (wetherilli 008 — 묶음 고치기로 DB 에 다시 만들 수 없는 것이 생겼다).
 #
 #   sudo bash deploy/host/install.sh
 #
@@ -31,8 +32,17 @@ if [ ! -f "$SRV/.env" ]; then
     echo "   .env 를 만들었다"
 else
     echo "   .env 는 이미 있다 — 그대로 둔다"
+    # 판이 오르며 견본에 생긴 열쇠만 끝에 더한다 (있는 줄은 건드리지 않는다)
+    while IFS= read -r line; do
+        key="${line%%=*}"
+        if ! grep -q "^$key=" "$SRV/.env"; then
+            echo "$line" >> "$SRV/.env"; echo "   .env 에 더했다: $key"
+        fi
+    done < <(grep -E '^SIRIOPSIS_BACKUP|^SIRIOPSIS_OFFSITE' "$REPO/deploy/srv/env.template")
 fi
 install -d -o paleoadmin -g paleoadmin -m 2775 /data/Siriopsis /data/Siriopsis/thumbcache
+# 일별 오프사이트 사본 자리 (backup 문이 붙인다 — 없으면 docker 가 root 로 만든다)
+install -d -o paleoadmin -g paleoadmin -m 2775 /nfs/temp-share/Siriopsis/backup
 
 echo "== 2. nginx"
 install -m 644 "$REPO/deploy/nginx/Siriopsis-subpath.conf" /etc/nginx/snippets/Siriopsis-subpath.conf
@@ -86,6 +96,10 @@ PY
 else
     echo "   카드는 이미 있다"
 fi
+
+echo "== 4. 백업 cron"
+install -o root -g root -m 644 "$REPO/deploy/cron.d/Siriopsis" /etc/cron.d/Siriopsis
+echo "   /etc/cron.d/Siriopsis — 시간별 :50, NAS 05:40. 다음 날 /healthz 의 backup 을 본다"
 
 cat <<EOF
 

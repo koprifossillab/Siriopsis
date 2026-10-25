@@ -14,6 +14,9 @@
   section.sp h3 .taxon { font-style: italic; font-weight: 500; }
   section.sp .remarks { color: var(--dim); font-size: 12.5px; margin: 0 0 8px; max-width: 70rem; }
   section.sp .grid { margin-top: 8px; }
+  .hiddentile { padding: 0 0 8px; text-align: center; }
+  .hiddentile .tile { border: 0; border-radius: 0; opacity: .6; }
+  .hiddentile .btn { font-size: 12px; }
 </style>
 {% endblock %}
 {% block content %}
@@ -41,6 +44,15 @@
 <section class="sp">
   <h3>표본 글자 없음 <span class="dim" style="font-size:12.5px;font-weight:400">이름에 표본 글자가 없는 더미 — 어느 표본인지는 사람이 정한다</span></h3>
   <div class="grid">{% for st in loose %}{% include "specimens/_stackcard.html" %}{% endfor %}</div>
+</section>
+{% endif %}
+{% if hidden %}
+<section class="sp">
+  <h3>지운 묶음 {{ hidden|length }} <span class="dim" style="font-size:12.5px;font-weight:400">묶음 고치기에서 지웠거나 다른 묶음에 합친 것 — 행이 남아 반입이 도로 만들지 않는다</span></h3>
+  <div class="grid">{% for st in hidden %}
+    <div class="tile hiddentile">{% include "specimens/_stackcard.html" %}
+      <form method="post" action="{% url 'restore_stack' st.id %}">{% csrf_token %}<button type="submit" class="btn">되살리기</button></form>
+    </div>{% endfor %}</div>
 </section>
 {% endif %}
 {% endblock %}

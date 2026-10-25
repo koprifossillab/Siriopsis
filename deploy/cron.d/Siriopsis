@@ -1,0 +1,8 @@
+# Siriopsis — DB 사본 (ops/backup_db.py, wetherilli 008). deploy/host/install.sh 가 /etc/cron.d/Siriopsis 로 깐다.
+# 시각은 형제와 비꼈다 (.guides/web/operations.md §9): 시간별 :50 — DiaRUGA :20 · ForGIA :25 · GSM :40 뒤.
+# NAS 로는 05:40 — DiaRUGA 04:40 · ForGIA 05:10 동기화 뒤, 04:50 시간별 사본을 보낸다(2 시간 넘게 묵은 것은 안 보낸다).
+# 사용자는 paleoadmin(1000) — 컨테이너와 같은 사용자. 실패는 깃발(BACKUP_FAIL.*)로 /healthz 가 알린다.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+50 * * * * paleoadmin cd /srv/Siriopsis && docker compose run --rm -T backup --keep 24 >> /srv/Siriopsis/backup/backup.log 2>&1
+40 5 * * * paleoadmin cd /srv/Siriopsis && docker compose run --rm -T backup --offsite /nfs/temp-share/Siriopsis/backup --keep-offsite 60 >> /srv/Siriopsis/backup/backup.log 2>&1

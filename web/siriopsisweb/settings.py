@@ -63,7 +63,11 @@ INSTALLED_APPS = [
 ]
 
 # 인증/세션이 없으므로 미들웨어도 최소한만. 로그인이 생기면 그때 더한다.
-MIDDLEWARE = ["django.middleware.common.CommonMiddleware"]
+# CSRF 는 묶음 고치기(POST, wetherilli 008)부터 — 다른 사이트의 글이 묶음을 숨기지 못하게. 세션 없이 쿠키로 돈다
+MIDDLEWARE = ["django.middleware.common.CommonMiddleware", "django.middleware.csrf.CsrfViewMiddleware"]
+# 형제 앱이 같은 호스트에 서브경로로 붙어 있다 — 쿠키 이름과 경로를 갈라 서로의 것을 덮지 않는다
+CSRF_COOKIE_NAME = "siriopsis_csrftoken"
+CSRF_COOKIE_PATH = (FORCE_SCRIPT_NAME or "") + "/"
 
 ROOT_URLCONF = "siriopsisweb.urls"
 
@@ -146,3 +150,9 @@ try:
     BACKUP_MAX_AGE_H = float(os.environ.get("SIRIOPSIS_BACKUP_MAX_AGE_H", "") or 0) or None
 except ValueError:
     BACKUP_MAX_AGE_H = None
+# 하루 한 번 NAS 로 간 사본(`ops/backup_db.py --offsite` 가 BACKUP_DIR 에 남기는 offsite_status.json)의 나이 문턱.
+# 일별이면 48. 꺼 두는 까닭은 위와 같다
+try:
+    OFFSITE_MAX_AGE_H = float(os.environ.get("SIRIOPSIS_OFFSITE_MAX_AGE_H", "") or 0) or None
+except ValueError:
+    OFFSITE_MAX_AGE_H = None

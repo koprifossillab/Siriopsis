@@ -24,6 +24,8 @@ x-common: &common
     - "/nfs/temp-share/Sirius Passet Catalog:/nfs/temp-share/Sirius Passet Catalog:ro"
     # 축소본 캐시는 루트 SSD 가 아니라 8 TB 하드에 (.guides/web/operations.md §6)
     - /data/Siriopsis/thumbcache:/data/Siriopsis/thumbcache
+    # 백업 자리는 **읽기만** — /healthz 가 사본의 나이와 실패 깃발을 본다. 쓰는 것은 아래 backup 문뿐이다
+    - /srv/Siriopsis/backup:/srv/Siriopsis/backup:ro
 
 services:
   web:
@@ -52,3 +54,23 @@ services:
     profiles: ["manual"]          # `up` 에 딸려 뜨지 않게
     working_dir: /app/web
     entrypoint: ["python", "manage.py"]
+
+  # DB 사본 (wetherilli 008, `ops/backup_db.py`). 묶음 고치기부터 DB 에 반입으로 다시 만들 수 없는 것이 생겼다.
+  # cron(/etc/cron.d/Siriopsis)이 부른다 — 시간별 `--keep 24`, 하루 한 번 `--offsite …`. 배포 전에는 손으로:
+  #
+  #   docker compose run --rm -T backup --note pre-v0.2.0 --flat --out /srv/Siriopsis/backup/pre_deploy --keep 20
+  #
+  # 살아 있는 DB 를 컨테이너 안에서 연다 — 호스트는 운영 DB 를 열지 않는다 (.guides/web/data-safety.md §14)
+  backup:
+    image: koprifossillab/siriopsis:${IMAGE_TAG:?IMAGE_TAG 를 .env 에 넣을 것}
+    user: "1000:1000"
+    env_file: [.env]
+    environment:
+      TZ: Asia/Seoul
+    profiles: ["manual"]
+    volumes:
+      - /srv/Siriopsis/db:/srv/Siriopsis/db
+      - /srv/Siriopsis/backup:/srv/Siriopsis/backup
+      # 일별 오프사이트 — NAS 는 누구나 읽는다. DB 에 로그인·비밀이 없어 그대로 보낸다(backup_db.py 머리말)
+      - /nfs/temp-share/Siriopsis/backup:/nfs/temp-share/Siriopsis/backup
+    entrypoint: ["python", "/app/ops/backup_db.py"]

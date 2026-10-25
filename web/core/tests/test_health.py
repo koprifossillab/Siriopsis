@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import time
@@ -45,6 +46,26 @@ class HealthzTest(SafeTestCase):
             with override_settings(BACKUP_DIR=Path(d), BACKUP_MAX_AGE_H=3):
                 r = self.client.get(reverse("healthz"))
         self.assertEqual(r.json()["status"], "degraded")
+
+
+    def test_failure_flag_is_degraded(self):
+        # 백업이 실패해 깃발을 세웠으면 사본이 새것이어도 degraded (ops/backup_db.py)
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "Siriopsis_20260101_000000.db").touch()
+            (Path(d) / "BACKUP_FAIL.backup").write_text("integrity_check=bad", encoding="utf-8")
+            with override_settings(BACKUP_DIR=Path(d), BACKUP_MAX_AGE_H=3):
+                r = self.client.get(reverse("healthz"))
+        self.assertEqual(r.json()["status"], "degraded")
+        self.assertIn("integrity_check=bad", " ".join(r.json()["notes"]))
+
+    def test_stale_offsite_is_degraded(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "Siriopsis_20260101_000000.db").touch()
+            (Path(d) / "offsite_status.json").write_text(json.dumps({"at": time.time() - 72 * 3600}))
+            with override_settings(BACKUP_DIR=Path(d), BACKUP_MAX_AGE_H=3, OFFSITE_MAX_AGE_H=48):
+                r = self.client.get(reverse("healthz"))
+        self.assertEqual(r.json()["status"], "degraded")
+        self.assertEqual(r.json()["backup"]["offsite_age_h"], 72.0)
 
 
 class HealthzEmptyTest(SafeTestCase):

@@ -7,17 +7,23 @@ from django.conf import settings
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import FileResponse, Http404
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 
-from . import browse, thumbs
+from . import browse, regroup, thumbs
 from .models import Frame, Slab, Stack
 
 PER_PAGE = 48
 
 
 def _first_frames(stack_ids):
-    """{더미 id: 첫 컷 id}. 빛 묶음의 1 번은 고른 빛에 자가 있는 컷이라 대표로 맞다."""
-    return dict(Frame.objects.filter(stack_id__in=stack_ids, seq=0).values_list("stack_id", "id"))
+    """{더미 id: 보이는 첫 컷 id}. 빛 묶음의 1 번은 고른 빛에 자가 있는 컷이라 대표로 맞다. 숨긴 컷은 뒤에 있다(`regroup`)."""
+    out = {}
+    for sid, fid in (Frame.objects.filter(stack_id__in=stack_ids, hidden=False)
+                     .order_by("stack_id", "seq").values_list("stack_id", "id")):
+        out.setdefault(sid, fid)
+    return out
 
 
 def home(request):
@@ -37,14 +43,14 @@ def home(request):
     if year not in {y for y, _ in ys}:
         year = 0
 
-    slabs = Slab.objects.filter(stacks__isnull=False)
+    slabs = Slab.objects.filter(stacks__hidden=False)
     if year:
         slabs = slabs.filter(year=year)
     if q:
         slabs = slabs.filter(Q(slab_no__icontains=q) | Q(specimens__taxon_name__icontains=q)
                              | Q(specimens__phylum__icontains=q))
     if kind in Stack.Kind.values:
-        slabs = slabs.filter(stacks__kind=kind)
+        slabs = slabs.filter(stacks__kind=kind, stacks__hidden=False)
     slabs = slabs.distinct().order_by("slab_no")
 
     keep = {k: v for k, v in (("q", q), ("kind", kind), ("by", "horizon" if by == "horizon" else "")) if v}
@@ -62,7 +68,7 @@ def home(request):
     rows = browse.slab_rows(list(page))
     # 슬랩마다 대표 더미 하나 — 정본 빛 묶음을 먼저(PTM 첫 컷은 낮은 빛이라 어둡다)
     rep = {}
-    for st in (Stack.objects.filter(slab_id__in=[r["slab"].id for r in rows], copy_of__isnull=True)
+    for st in (Stack.objects.filter(slab_id__in=[r["slab"].id for r in rows], copy_of__isnull=True, hidden=False)
                .order_by("slab_id", "-kind", "label")):        # "series" > "ptm"
         rep.setdefault(st.slab_id, st.id)
     first = _first_frames(rep.values())
@@ -73,10 +79,11 @@ def home(request):
 
 
 def slab(request, slab_no):
-    """슬랩 하나 — 표본마다 더미를 {처리 × 배율} 칸으로. 표본 글자 없는 더미는 따로."""
+    """슬랩 하나 — 표본마다 더미를 {처리 × 배율} 칸으로. 표본 글자 없는 더미는 따로, 지운 더미는 맨 뒤에(되살리기)."""
     s = get_object_or_404(Slab, slab_no=slab_no)
-    stacks = list(s.stacks.filter(copy_of__isnull=True).select_related("specimen")
-                  .order_by("kind", "preparation", "view", "label"))
+    stacks = list(s.stacks.filter(copy_of__isnull=True, hidden=False).select_related("specimen")
+                  .order_by("kind", "preparation", "view", "label", "piece"))
+    hidden = list(s.stacks.filter(hidden=True).order_by("label", "piece", "source_dir"))
     first = _first_frames([st.id for st in stacks])
     for st in stacks:
         st.first_frame = first.get(st.id)
@@ -87,21 +94,34 @@ def slab(request, slab_no):
         if mine:
             groups.append({"specimen": sp, "stacks": mine})
     loose = [st for st in stacks if st.specimen_id is None]
+    first.update(_hidden_first(hidden))
+    for st in hidden:
+        st.first_frame = first.get(st.id)
     return render(request, "specimens/slab.html", {
-        "slab": s, "groups": groups, "loose": loose,
+        "slab": s, "groups": groups, "loose": loose, "hidden": hidden,
         "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
     })
 
 
+def _hidden_first(stacks):
+    """지운 묶음의 대표 컷 — 합쳐 비었으면 없다. 숨긴 컷이라도 낸다."""
+    out = {}
+    for sid, fid in (Frame.objects.filter(stack_id__in=[s.id for s in stacks])
+                     .order_by("stack_id", "seq").values_list("stack_id", "id")):
+        out.setdefault(sid, fid)
+    return out
+
+
 def stack(request, pk):
     st = get_object_or_404(Stack.objects.select_related("slab", "specimen", "copy_of"), pk=pk)
-    frames = list(st.frames.all())
+    frames = list(st.frames.filter(hidden=False))
+    hidden_frames = list(st.frames.filter(hidden=True))
     primary = st.copy_of or st
     # 같은 묶음의 정본과 사본 — 어느 쪽을 보고 있든 같은 줄을 낸다
-    family = [primary] + list(primary.copies.order_by("source_dir"))
+    family = [primary] + list(primary.copies.filter(hidden=False).order_by("source_dir"))
     # 이 슬랩의 다른 더미 — 왼쪽 칸의 격자(DiaRUGA 시야 격자 자리)와 PageUp/Down
-    siblings = list(st.slab.stacks.filter(copy_of__isnull=True).select_related("specimen")
-                    .order_by("kind", "preparation", "view", "label"))
+    siblings = list(st.slab.stacks.filter(copy_of__isnull=True, hidden=False).select_related("specimen")
+                    .order_by("kind", "preparation", "view", "label", "piece"))
     first = _first_frames([x.id for x in siblings])
     for x in siblings:
         x.first_frame = first.get(x.id)
@@ -118,7 +138,89 @@ def stack(request, pk):
         "stack": st, "frames": frames, "payload": payload, "family": family if len(family) > 1 else [],
         "prev_id": prev_id, "next_id": next_id, "siblings": siblings, "primary_id": primary.id,
         "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
+        "hidden_frames": hidden_frames,
+        # 묶음 고치기 칸 (008) — 빛 묶음만. 합칠 상대는 같은 슬랩의 빛 묶음(사본 포함)
+        "editable": st.kind == Stack.Kind.SERIES and not st.hidden,
+        "merge_targets": list(st.slab.stacks.filter(kind=Stack.Kind.SERIES, hidden=False)
+                              .exclude(id=st.id).order_by("label", "piece", "source_dir")),
     })
+
+
+# ── 묶음 고치기 (wetherilli 008) ────────────────────────────
+# 묶음을 바꾸는 셋(가르기·합치기·지우기)은 **두 걸음이다 — 미리보기 다음에 확인**(DiaRUGA `split_group` 과 같다).
+# 첫 POST 는 무엇이 어떻게 되는지 보여 주기만 하고, `confirm=1` 이 실린 두 번째 POST 만 고친다.
+# 숨기기·되살리기는 되돌릴 수 있어 한 걸음이다. 고칠 수 없는 묶음(PTM·지운 것)은 화면이 아니라 **서버가** 막는다(`regroup._check`).
+
+def _regroup_page(request, st, action, preview, extra=None):
+    ctx = {"stack": st, "action": action, "preview": preview, "back_url": reverse("stack", args=[st.id])}
+    ctx.update(extra or {})
+    return render(request, "specimens/regroup_confirm.html", ctx, status=200 if preview["ok"] else 400)
+
+
+def _bad(request, st, action, e):
+    return _regroup_page(request, st, action, {"ok": False, "errors": [str(e)]})
+
+
+@require_POST
+def split_stack(request, pk):
+    st = get_object_or_404(Stack, pk=pk)
+    after = [a for a in request.POST.getlist("after") if a.strip()]
+    if request.POST.get("confirm") == "1":
+        try:
+            regroup.apply_split(st, after)
+        except ValueError as e:
+            return _bad(request, st, "split", e)
+        return redirect("stack", pk=st.id)
+    return _regroup_page(request, st, "split", regroup.split_preview(st, after), {"after": after})
+
+
+@require_POST
+def merge_stack(request, pk):
+    st = get_object_or_404(Stack, pk=pk)
+    other = (request.POST.get("with") or "").strip()
+    if request.POST.get("confirm") == "1":
+        try:
+            regroup.apply_merge(st, other)
+        except ValueError as e:
+            return _bad(request, st, "merge", e)
+        return redirect("stack", pk=st.id)
+    return _regroup_page(request, st, "merge", regroup.merge_preview(st, other), {"other": other})
+
+
+@require_POST
+def delete_stack(request, pk):
+    st = get_object_or_404(Stack, pk=pk)
+    if request.POST.get("confirm") == "1":
+        try:
+            slab_no = regroup.apply_delete(st)
+        except ValueError as e:
+            return _bad(request, st, "delete", e)
+        return redirect("slab", slab_no=slab_no)
+    return _regroup_page(request, st, "delete", regroup.delete_preview(st))
+
+
+@require_POST
+def restore_stack(request, pk):
+    st = get_object_or_404(Stack, pk=pk)
+    try:
+        regroup.restore(st)
+    except ValueError as e:
+        return _bad(request, st, "restore", e)
+    return redirect("stack", pk=st.id)
+
+
+@require_POST
+def frame_visibility(request, pk):
+    """컷 숨기기(`hide=1`)·되살리기(`hide=0`). 한 걸음 — 되살릴 수 있다."""
+    f = get_object_or_404(Frame.objects.select_related("stack"), pk=pk)
+    try:
+        if request.POST.get("hide") == "1":
+            regroup.hide_frame(f)
+        else:
+            regroup.show_frame(f)
+    except ValueError as e:
+        return _bad(request, f.stack, "frame", e)
+    return redirect("stack", pk=f.stack_id)
 
 
 def frame_image(request, pk):

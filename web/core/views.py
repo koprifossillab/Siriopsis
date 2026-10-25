@@ -1,4 +1,5 @@
 import html
+import json
 import os
 import re
 import time
@@ -58,6 +59,30 @@ def healthz(request):
         notes.append("백업 사본이 없다" if age_h is None else
                      f"백업이 낡았다 — 가장 새 사본이 {age_h} 시간 전 "
                      f"(문턱 {settings.BACKUP_MAX_AGE_H})")
+
+    # 백업 스크립트가 세운 실패 깃발 (`ops/backup_db.py` — BACKUP_FAIL.backup · BACKUP_FAIL.offsite). 문턱과 상관없이 본다
+    try:
+        flags = sorted(settings.BACKUP_DIR.glob("BACKUP_FAIL.*"))
+    except OSError:
+        flags = []
+    for f in flags:
+        info["status"] = "degraded" if info["status"] == "ok" else info["status"]
+        try:
+            notes.append(f"백업 실패 ({f.suffix[1:]}): {f.read_text(encoding='utf-8').strip()}")
+        except OSError:
+            notes.append(f"백업 실패 ({f.suffix[1:]})")
+
+    off_h = None
+    try:
+        at = json.loads((settings.BACKUP_DIR / "offsite_status.json").read_text(encoding="utf-8"))["at"]
+        off_h = round((time.time() - at) / 3600, 1)
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    info["backup"]["offsite_age_h"] = off_h
+    if settings.OFFSITE_MAX_AGE_H and (off_h is None or off_h > settings.OFFSITE_MAX_AGE_H):
+        info["status"] = "degraded" if info["status"] == "ok" else info["status"]
+        notes.append("NAS 로 간 사본이 없다" if off_h is None else
+                     f"NAS 사본이 낡았다 — {off_h} 시간 전 (문턱 {settings.OFFSITE_MAX_AGE_H})")
 
     info["notes"] = notes
     code = 503 if info["status"] == "unhealthy" else 200

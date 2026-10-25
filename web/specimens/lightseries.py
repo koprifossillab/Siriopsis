@@ -12,6 +12,10 @@
 정본의 컷이 한 장뿐이면 그 대상은 통째로 넣지 않는다.
 **정본 고르기는 전체를 훑을 때만 뜻이 있다** — `--under` 로 일부만 훑으면 고르기도 그 안에서만 하고, 사라진 묶음을 지우지 않는다.
 
+**사람이 고친 묶음은 다시 만들지 않는다**(wetherilli 008, `regroup.py`) — `edited_at` 이 있는 묶음은 값도 컷도 건드리지 않고,
+폴더가 사라져도 지우지 않는다. 손댄 묶음의 폴더에 그 뒤로 새 컷이 생기면(어느 손댄 묶음에도 없는 경로) 같은 이름의
+**다른 조각**(`piece` > 0, 손대지 않음)에 넣는다 — 사람이 보고 합치거나 지운다. 숨긴 컷도 손댄 묶음에 있으니 도로 들어오지 않는다.
+
 **원본은 읽기만 한다.** 몇 번을 돌려도 같다. EXIF 는 테이블에 없는 컷만 읽는다(다시 돌릴 때 NAS 를 덜 읽는다).
 """
 import os
@@ -49,6 +53,8 @@ class SeriesStats:
     updated: int = 0
     unchanged: int = 0
     removed: int = 0
+    kept: int = 0           # 사람이 고친 묶음이라 건너뛴 것
+    orphaned: int = 0       # 사람이 고친 묶음인데 폴더가 사라진 것 — 지우지 않는다
     exif_read: int = 0
     errors: list = field(default_factory=list)
 
@@ -101,7 +107,29 @@ def _frame_key(fr):
 
 
 @transaction.atomic
-def save_series(rel, name, shots, exif, copy_of=None, copies=0):
+def save_series(rel, name, shots, exif, copy_of=None, copies=0, owned=frozenset()):
+    """한 폴더·이름의 묶음을 맞춘다. `owned` 는 사람이 고친 묶음이 가진 컷 경로 — 그 묶음이 있으면 이것만 빼고 넣는다."""
+    rows = list(Stack.objects.filter(source_dir=rel, kind=Stack.Kind.SERIES, label=name))
+    if any(r.edited_at for r in rows):
+        return _save_leftover(rel, name, [s for s in shots if f"{rel}/{s[1]}" not in owned], exif, rows)
+    return _save(rel, name, shots, exif, copy_of=copy_of, copies=copies)
+
+
+def _save_leftover(rel, name, shots, exif, rows):
+    """손댄 묶음의 폴더에서 어느 손댄 묶음에도 없는 컷 → 손대지 않은 조각 하나에. 없으면 그 조각을 지운다."""
+    primary = min(rows, key=lambda r: r.piece)        # 사본이 가리킬 행 — 반입이 처음 만든 묶음
+    left = next((r for r in rows if not r.edited_at), None)
+    if not shots:
+        if left:
+            left.delete()
+            return "updated", primary.id
+        return "kept", primary.id
+    piece = left.piece if left else max(r.piece for r in rows) + 1
+    result, _ = _save(rel, name, shots, exif, piece=piece)
+    return result, primary.id
+
+
+def _save(rel, name, shots, exif, copy_of=None, copies=0, piece=0):
     p = parse_stem(name)
     slab, _ = Slab.objects.get_or_create(slab_no=p["slab"], defaults={"year": p["year"]})
     specimen = None
@@ -118,10 +146,10 @@ def save_series(rel, name, shots, exif, copy_of=None, copies=0):
     values = {
         "slab": slab, "kind": Stack.Kind.SERIES, "preparation": preparation_of(rel),
         "view": Stack.View.WHOLE, "label": name, "source_dir": rel, "other_copies": copies,
-        "copy_of": copy_of,
+        "copy_of": copy_of, "piece": piece,
         "n_frames": len(frames), "width": w, "height": h, "camera": first[2], "captured_at": first[3],
     }
-    stack = Stack.objects.filter(source_dir=rel, kind=Stack.Kind.SERIES, label=name).first()
+    stack = Stack.objects.filter(source_dir=rel, kind=Stack.Kind.SERIES, label=name, piece=piece).first()
     if stack is None:
         stack = Stack.objects.create(specimen=specimen, **values)
         Frame.objects.bulk_create(Frame(stack=stack, **fr) for fr in frames)
@@ -198,25 +226,33 @@ def scan(root=None, under=None, workers=16, log=None):
             return False
         return True
 
+    # 사람이 고친 묶음이 가진 컷 — 숨긴 컷과 다른 묶음에서 합쳐 온 컷도 든다
+    owned = frozenset(Frame.objects.filter(stack__kind=Stack.Kind.SERIES, stack__edited_at__isnull=False)
+                      .values_list("path", flat=True))
     for target in targets:
         (rel, name, shots), rest = target[0], target[1:]
         if not readable(rel, name, shots):
             continue
         # 정본을 먼저 — 사본이 가리킬 행이 있어야 한다. 정본이 바뀌면 옛 정본은 사본이 된다
-        result, primary_id = save_series(rel, name, shots, exif, copies=len(rest))
+        result, primary_id = save_series(rel, name, shots, exif, copies=len(rest), owned=owned)
         setattr(st, result, getattr(st, result) + 1)
         for c_rel, c_name, c_shots in rest:
             if readable(c_rel, c_name, c_shots):
-                result, _ = save_series(c_rel, c_name, c_shots, exif, copy_of=Stack(id=primary_id))
+                result, _ = save_series(c_rel, c_name, c_shots, exif, copy_of=Stack(id=primary_id), owned=owned)
                 setattr(st, result, getattr(st, result) + 1)
 
     if not under:
         # 전체를 훑었을 때만: 더는 없는 묶음(폴더가 사라진 것)을 지운다.
         # 못 읽어 건너뛴 묶음도 picked 에 있으니 지워지지 않는다
+        # 사람이 고친 묶음은 폴더가 사라져도 남긴다 — 세어서 알린다
         picked_keys = {(rel, name) for rel, name, _ in picked}
-        gone_ids = [sid for sid, rel, name in Stack.objects.filter(kind=Stack.Kind.SERIES)
-                    .values_list("id", "source_dir", "label") if (rel, name) not in picked_keys]
+        gone_ids, orphans = [], []
+        for sid, rel, name, edited in (Stack.objects.filter(kind=Stack.Kind.SERIES)
+                                       .values_list("id", "source_dir", "label", "edited_at")):
+            if (rel, name) not in picked_keys:
+                (orphans if edited else gone_ids).append(sid)
         gone = Stack.objects.filter(id__in=gone_ids)
         st.removed = gone.count()
         gone.delete()
+        st.orphaned = len(orphans)
     return st

@@ -26,5 +26,6 @@ class Command(BaseCommand):
             self.stderr.write(f"… {len(st.errors) - 30} 건 더")
         self.stdout.write(self.style.SUCCESS(
             f"이름 묶음 {st.names} · 정본 {st.chosen} · 사본 {st.copies} · 한 장뿐 {st.single} · 새로 {st.created} · "
-            f"바뀜 {st.updated} · 그대로 {st.unchanged} · 지움 {st.removed} · EXIF 읽음 {st.exif_read} · "
+            f"바뀜 {st.updated} · 그대로 {st.unchanged} · 손댄 묶음 {st.kept} · 지움 {st.removed} · "
+            f"폴더 없는 손댄 묶음 {st.orphaned} · EXIF 읽음 {st.exif_read} · "
             f"못 읽음 {len(st.errors)}"))

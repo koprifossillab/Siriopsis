@@ -46,7 +46,7 @@ def band_of(horizon):
 def slab_rows(slabs):
     """슬랩마다 화면 한 줄의 값. 사본은 묶음 수·컷 수에 넣지 않는다(따로 센다)."""
     ids = [s.id for s in slabs]
-    agg = {r["slab_id"]: r for r in Stack.objects.filter(slab_id__in=ids).values("slab_id").annotate(
+    agg = {r["slab_id"]: r for r in Stack.objects.filter(slab_id__in=ids, hidden=False).values("slab_id").annotate(
         series=Count("id", filter=Q(kind=Stack.Kind.SERIES, copy_of__isnull=True)),
         ptm=Count("id", filter=Q(kind=Stack.Kind.PTM, copy_of__isnull=True)),
         copies=Count("id", filter=Q(copy_of__isnull=False)),
