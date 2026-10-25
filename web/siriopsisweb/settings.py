@@ -59,6 +59,7 @@ CSRF_TRUSTED_ORIGINS = [f"http://{h}" for h in ALLOWED_HOSTS if not h.startswith
 INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "core",
+    "specimens",
 ]
 
 # 인증/세션이 없으므로 미들웨어도 최소한만. 로그인이 생기면 그때 더한다.
@@ -117,6 +118,15 @@ USE_TZ = True
 
 # 큰 자료(사진 등)의 뿌리. 컨테이너에서는 /data, 호스트에서는 큰 디스크를 가리킨다.
 DATA_ROOT = Path(os.environ.get("SIRIOPSIS_DATA_ROOT", "") or PROJECT_ROOT)
+
+# NAS 의 원본 자료 뿌리. **읽기만 한다** — 컨테이너에는 읽기 전용으로 마운트한다.
+# 테이블의 경로(Stack.source_dir·Frame.path)는 모두 이 뿌리 기준 상대경로다.
+SOURCE_ROOT = Path(os.environ.get("SIRIOPSIS_SOURCE_ROOT", "")
+                   or "/nfs/temp-share/Sirius Passet Catalog")
+
+# 분류 정보를 읽어 올 phyloserver siriuspasset 의 뿌리 (specimens/catalog.py).
+# `paleolab` 은 이 서버 안에서 이름이 안 풀린다 — 사내망 주소로 부른다(컨테이너에서도 닿는다).
+CATALOG_URL = os.environ.get("SIRIOPSIS_CATALOG_URL", "") or "http://172.16.116.98/siriuspasset/"
 
 # --- 안전망 상태 (/healthz 가 읽는다) -----------------------------------------
 

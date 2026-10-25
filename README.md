@@ -6,15 +6,19 @@
 첫 이미지 유형은 **빛 방향 더미** — 표본과 카메라를 고정하고 빛만 50 방향에서 비춰 찍은 묶음(RTI 촬영)을,
 DiaRUGA 가 한 시야를 여러 초점으로 넘겨 보듯 빛 방향을 바꿔 가며 본다. 단계는 [P01](devlog/20261025_wetherilli_P01_stages.md).
 
-> 지금은 뼈대(Django · `/healthz` · 시험 · 이미지 · CI)만 있다.
+> 지금은 빛 더미 22 벌(표본 여섯)이 테이블에 들어가 있고, 화면은 아직 없다(2단계).
 
 ## 시작
 
 ```bash
 python3 -m venv ~/venv/Siriopsis && . ~/venv/Siriopsis/bin/activate
 pip install -r requirements.txt
-python web/manage.py test core
+python web/manage.py test core specimens
 python web/manage.py migrate && python web/manage.py runserver 0.0.0.0:8051
 ```
 
 작업 규칙은 [CLAUDE.md](CLAUDE.md), 지금 상태는 [HANDOFF.md](HANDOFF.md).
+
+## 라이선스
+
+[AGPL-3.0](LICENSE). 화석 사진은 이 저장소에 들어 있지 않다 — 연구실 NAS 에서 읽는다.

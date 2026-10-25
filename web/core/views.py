@@ -23,8 +23,8 @@ def healthz(request):
     **`degraded` 를 503 으로 두지 않는다** — 배포의 기동 게이트가 200 을 기다린다.
     배포를 막는 일은 smoke 가 `status != ok` 로 한다 (.guides/web/operations.md §4).
 
-    도메인 테이블이 생기면 **핵심 행 수 ≠ 0** 검사를 여기 더한다 — 마운트가 어긋나
-    빈 DB 가 새로 만들어져도 "DB 가 열린다" 는 통과하기 때문이다.
+    **핵심 행 수 ≠ 0** — 컷(Frame)이 하나도 없으면 degraded. 마운트가 어긋나 빈 DB 가 새로
+    만들어져도 "DB 가 열린다" 는 통과하기 때문이다.
     """
     info = {"status": "ok", "version": os.environ.get("IMAGE_TAG", "")}
     notes = []
@@ -33,6 +33,12 @@ def healthz(request):
         with connection.cursor() as cur:
             cur.execute("SELECT 1")
         info["db"] = "ok"
+        from specimens.models import Frame, Stack
+        info["stacks"] = Stack.objects.count()
+        info["frames"] = Frame.objects.count()
+        if info["frames"] == 0:
+            info["status"] = "degraded"
+            notes.append("컷이 하나도 없다 — DB 가 비었거나 반입(scan_light_stacks)을 안 했다")
     except Exception as e:                       # noqa: BLE001 — 무엇이 나오든 죽지 않는다
         info["status"] = "unhealthy"
         info["db"] = None

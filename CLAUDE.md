@@ -26,7 +26,9 @@ paleo-server 에서 도는 웹 앱(Django + Docker + SQLite + gunicorn + nginx �
 **표기는 `Siriopsis` 하나** — 저장소·경로(`/srv/Siriopsis`·`~/venv/Siriopsis`)·URL(`/Siriopsis/`)·
 DB(`Siriopsis.db`). **기술이 소문자를 강제하는 자리만 `siriopsis`** — Docker Hub 이미지
 (`koprifossillab/siriopsis`), 파이썬 패키지(`siriopsisweb`), `localStorage` 키.
-환경변수는 `SIRIOPSIS_*`. 앱은 지금 `core`(첫 화면·`/healthz`) 하나.
+환경변수는 `SIRIOPSIS_*`. 앱은 `core`(첫 화면·`/healthz`)와 `specimens`(슬랩·표본·더미·컷, 반입).
+**슬랩·표본 이름은 phyloserver 꼴** — `SP-2016-0052`(번호 네 자리)·`SP-2016-0052-A`. NAS 의 `SP-2016-52A`·`52Z` 는 `specimens/names.py` 가 바꾼다
+(끝의 대문자 `Z` 는 확대 촬영, 표본 글자가 아니다 — 사용자 확인).
 
 **말** (자료의 엑셀 목록을 따른다 — P01 에서 정했다):
 슬랩(Slab = `SP-2016-47`, 암석 한 덩이) · 표본(Specimen = 슬랩 안의 글자 `A`·`K` …, 화석 하나) ·
@@ -68,15 +70,19 @@ paleoadmin 요청(`temp/`)·사람이 넘겨줄 자료를 여기에 둔다. 만�
 
 - `SP-<연도> 샘플별/SP-<연도>(<번호 구간>)/SP-<연도>-<슬랩><표본>-<컷>.JPG` — 카탈로그 사진(약 8만 장). 컷끼리 구도가 달라 그대로는 더미가 아니다
 - `SP-2016 샘플별/6D 외/PTM{, white coated}/<표본>/IMG_*.JPG + <표본>.lp + <표본>.ptm` — **빛 더미 22 벌**(벌마다 50 컷 + 빛 벡터). 1단계 자료
-- 목록 엑셀(`SP-*_Catalog*.xlsx`) — 슬랩·표본·분류군·문(phylum)·층준
+- 목록 엑셀(`SP-*_Catalog*.xlsx`) — 옛 사본. **분류 정보는 phyloserver 에서 읽는다**(아래)
 - `@eaDir`·`Thumbs.db`·`*@SynoEAStream` 은 NAS 가 만든 것 — 읽지 않는다
+
+**분류 정보의 원천은 phyloserver `siriuspasset`**(`http://paleolab/siriuspasset/specimen_list/`, 연구실이 고쳐 가는 목록).
+JSON API 가 없어 `import_catalog` 가 목록 화면의 표를 읽는다(`specimens/catalog.py`) — 읽기만, 테이블에 있는 슬랩만.
+서버 안에서는 `paleolab` 이름이 안 풀려 `http://172.16.116.98/siriuspasset/`(`SIRIOPSIS_CATALOG_URL`)로 부른다.
 
 ## 환경
 
 ```bash
 workon sp                 # ~/venv/Siriopsis + ~/projects/Siriopsis
 pip install -r requirements.txt
-python web/manage.py test core   # 시험 — 고치고 나면 이것부터
+python web/manage.py test core specimens   # 시험 — 고치고 나면 이것부터
 ```
 
 requirements 는 `-web`(이미지에 들어가는 것) · `-dev`(시험만) · 둘을 묶는 `requirements.txt`.
@@ -97,6 +103,8 @@ nginx 80 의 /Siriopsis/ → 127.0.0.1:8100 (운영) · 8101 (시험)
 export SIRIOPSIS_DB=$PWD/Siriopsis.db      # 운영 /srv/Siriopsis/db 를 가리키지 않는다
 export IMAGE_TAG="dev $(git rev-parse --short HEAD)"
 python web/manage.py migrate
+python web/manage.py scan_light_stacks --under "SP-2016 샘플별/6D 외"   # 빛 더미 (NAS 읽기만, 몇 번을 돌려도 같다. 전체는 30초)
+python web/manage.py import_catalog          # phyloserver 에서 층준·분류군
 PORT=$(for p in $(seq 8051 8059); do ss -ltn | grep -q ":$p " || { echo $p; break; }; done)
 setsid nohup python web/manage.py runserver 0.0.0.0:$PORT > /tmp/siriopsis-runserver.log 2>&1 < /dev/null &
 echo "http://172.16.116.98:$PORT/"

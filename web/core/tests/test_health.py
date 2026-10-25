@@ -6,10 +6,22 @@ from pathlib import Path
 from django.test import override_settings
 from django.urls import reverse
 
+from specimens.models import Frame, Slab, Stack
+
 from .base import SafeTestCase
 
 
+def make_frame():
+    slab = Slab.objects.create(slab_no="SP-2016-0052", year=2016)
+    stack = Stack.objects.create(slab=slab, kind="light", preparation="none", view="whole",
+                                 label="SP-2016-52A", source_dir="x", lp_file="x.lp")
+    Frame.objects.create(stack=stack, seq=0, path="x/IMG_1.JPG")
+
+
 class HealthzTest(SafeTestCase):
+    def setUp(self):
+        make_frame()
+
     def test_ok(self):
         r = self.client.get(reverse("healthz"))
         self.assertEqual(r.status_code, 200)
@@ -33,6 +45,15 @@ class HealthzTest(SafeTestCase):
             with override_settings(BACKUP_DIR=Path(d), BACKUP_MAX_AGE_H=3):
                 r = self.client.get(reverse("healthz"))
         self.assertEqual(r.json()["status"], "degraded")
+
+
+class HealthzEmptyTest(SafeTestCase):
+    def test_no_frames_is_degraded(self):
+        # 마운트가 어긋나 빈 DB 가 새로 생겨도 "DB 가 열린다" 는 통과한다 — 행 수로 잡는다
+        r = self.client.get(reverse("healthz"))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["status"], "degraded")
+        self.assertEqual(r.json()["frames"], 0)
 
 
 class HomeTest(SafeTestCase):
