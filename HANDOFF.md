@@ -6,6 +6,15 @@
 **자료가 맞는지 확인을 기다리며 멈추지 않는다** — 사용자는 데이터가 옳다고 보고 틀을 짜는 중이다. 아래 §0 은 막는 일이 아니다.
 다음은 사용자가 말해 줄 일들(TODOs 에 받는다), 그다음 **정밀 맞춤**(GPU).
 
+
+**이어 할 것 (2026-10-25 22:40, 사용량 한도로 멈춤)** — 운영은 아직 v0.2.0. v0.3.0 에 넣을 것:
+- 이 브랜치 `work/20261025-wetherilli`(`ae83368`): 슬랩 전경·vent(009), 슬랩 화면, catalog 3·5·6(012·013, 시험 89)
+- viewer 브랜치 `work/20261025-wetherilli-viewer`(worktree `../Siriopsis-wt-viewer`): `3cc1052`(010 배율·스케일바·길이) · `ffe7af9`(011 테두리), 시험 94.
+  **커밋 안 된 것**: devlog 010·011 초안, `devlog/README.md`·`TODOs.md`·`pipeline/ruler_scale.py` 고침 — 확인해 커밋. 배율 전체 실행(약 10,500 줄)은 끝나지 않았다 — `pipeline/ruler_scale.py --targets … --out …` 다시
+- 순서: viewer 를 이 브랜치 위로 rebase → `makemigrations --merge`(0006_catalog·0007_catalog 와 0006_viewer·0007_viewer) → 시험 → main push → 배포 전 사본 → v0.3.0 → 운영 반입
+  (`scan_slab_views` · `import_catalog` · `import_workbooks` · `import_scales <CSV — /srv/Siriopsis/backup/import/ 로 복사>`) → cron 조각 재설치 요청(timeout·offsite 문)
+- paleoadmin: phyloserver 0.109.0 `export.json` 은 내일 아침 운영 배포 예정, 내보내기는 NAS `phyloserver-export/20261025.part/`(끝나면 `.part` 가 빠진다). 22:50 첫 자동 백업 확인
+
 ## 0. 사람이 정할 것
 
 - **백업 cron** — paleoadmin 요청을 NAS `temp/20261025_request_backup_cron.md` 에 두었다(`/etc/cron.d/Siriopsis`). 깔리면 다음 :50 뒤 `/healthz` 의 `backup.age_h` 를 본다.
