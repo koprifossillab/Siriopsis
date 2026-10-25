@@ -13,7 +13,7 @@ NAS `/nfs/temp-share/Siriopsis/phyloserver-export/20261025/` 에 내보냈다(20
 | `SpFossilSpecimen` | 9,505 | remarks ☆ 43 · counterpart 2,198(표본) / 890(슬랩) |
 | `SpFossilImage` | 83,375 | 모두 `PHOTO`. 슬랩에만 28,147 · 표본에 55,228. **파일은 복사 안 함** — 모두 `original_path` 로 NAS `Sirius Passet Catalog` 를 가리킨다(166,749 파일·466 GB, `media_index.json` 에 경로·크기·md5). Siriopsis 가 이미 읽는 원본이다 |
 | `SpEpmaSession`·`Map`·`Channel` | 176 · 201 · 4,855 | **파일까지 복사됨** — `media/epma/`, 15,728 파일 · 167 GB. 원래 자리 `/data3/epma` 는 열화 중인 디스크라 이것이 사본 노릇도 한다. 세션이 걸린 슬랩 93, 그 가운데 81 이 Siriopsis 테이블에 있다 |
-| 이력(simple_history) | 슬랩 14,086 · 표본 18,789 · EPMA 457 | 표본 이력: 생성 14,144 · 삭제 4,639 · 고침 **6**. 사람이 화면에서 고친 일은 거의 없고, 반입을 다시 돌린 흔적이 대부분이다. `users.json` 이 비어 있다 — 이력의 `history_user` 가 없다(관리 명령이 남긴 것) |
+| 이력(simple_history) | 슬랩 14,086 · 표본 18,789 · EPMA 457 | 표본 이력: 생성 14,144 · 삭제 4,639 · 고침 **6**. 사람이 화면에서 고친 일은 거의 없고, 반입을 다시 돌린 흔적이 대부분이다. `users.json` 이 비어 있다 — 이력의 `history_user` 가 모두 null 이다. phyloserver 화면이 simple_history 에 사용자를 넘기지 않았다(paleoadmin DONE). 누가 고쳤는지는 이력 행의 `modified_by` 글자로 본다 |
 | `DirectoryScan`·`SpImageProcessingRecord` | 0 · 0 | |
 | `missing_files.txt` | 0 | DB 가 가리키는데 없는 파일 없음 |
 
