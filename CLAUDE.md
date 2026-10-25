@@ -49,6 +49,8 @@ DB(`Siriopsis.db`). **기술이 소문자를 강제하는 자리만 `siriopsis`*
   요청을 md 로 써서 NAS `/nfs/temp-share/Siriopsis/temp/`(사용자 PC `N:\Siriopsis\temp`)에 둔다 —
   paleoadmin 쪽이 주기적으로 읽고 처리한다. 파일 이름은 **영문**(`YYYYMMDD_request_<일>.md`, 한글 이름은 윈도에서 안 보인다).
   처리됐는지는 결과(경로·응답)로 확인한다.
+  **paleoadmin 은 `/home/sclee` 를 읽을 수 없다** — root 로 돌릴 스크립트는 검토할 수 있게 **읽는 파일까지 통째로** 커밋에서 뽑아(`git archive`)
+  `temp/` 아래에 같은 폴더 구조로 두고, 그 자리에서 돌리게 적는다(007).
 
 ## devlog
 
