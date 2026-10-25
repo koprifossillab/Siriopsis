@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from . import bare
 from .models import Slab, Specimen
 
 _COLS = ("col-slab", "col-horizon", "col-specimen", "col-taxon", "col-phylum", "col-remarks")
@@ -92,6 +93,12 @@ def parse_list(html):
     return slabs
 
 
+def _letter(slab_no, specimen_no):
+    """`SP-2016-0052`, `SP-2016-0052-A` → `A`. 꼴이 다르면 표본 번호 그대로(빈칸 없이)."""
+    head = f"{slab_no}-"
+    return specimen_no[len(head):] if specimen_no.startswith(head) else specimen_no.replace(" ", "")
+
+
 def fetch_slab(slab_no, base=None, timeout=20):
     base = (base or settings.CATALOG_URL).rstrip("/") + "/"
     url = base + "specimen_list/?" + urllib.parse.urlencode({"filter1": slab_no})
@@ -133,11 +140,16 @@ def apply_slab(slab, data, now=None):
     slab.catalog_synced_at = now or timezone.now()
     if not data:
         slab.catalog_id = None
+        slab.catalog_letters = ""
         slab.save()
+        bare.assign([slab.id])
         return 0
     slab.catalog_id = data["id"]
     slab.horizon = data["horizon"]
+    slab.catalog_letters = " ".join(sorted(_letter(slab.slab_no, no) for no in data["specimens"]))
     slab.save()
+    # 글자 없는 더미를 A 에 붙인다(012) — A 표본이 새로 생기면 아래에서 바로 채운다
+    bare.assign([slab.id])
     n = 0
     for sp in slab.specimens.all():
         row = data["specimens"].get(sp.specimen_no)

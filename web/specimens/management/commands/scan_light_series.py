@@ -7,6 +7,7 @@
 """
 from django.core.management.base import BaseCommand
 
+from specimens import bare
 from specimens.lightseries import scan
 
 
@@ -29,3 +30,4 @@ class Command(BaseCommand):
             f"바뀜 {st.updated} · 그대로 {st.unchanged} · 손댄 묶음 {st.kept} · 지움 {st.removed} · "
             f"폴더 없는 손댄 묶음 {st.orphaned} · EXIF 읽음 {st.exif_read} · "
             f"못 읽음 {len(st.errors)}"))
+        self.stdout.write(bare.summary())

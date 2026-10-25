@@ -17,6 +17,8 @@ class Slab(models.Model):
     # phyloserver siriuspasset 의 슬랩 id — 상세 화면으로 되돌아가는 링크. 목록에 없으면 null
     catalog_id = models.PositiveIntegerField(null=True, blank=True)
     catalog_synced_at = models.DateTimeField(null=True, blank=True)
+    # phyloserver 목록에 있는 이 슬랩의 표본 글자(`A B C`) — 테이블에 없는 표본도. 글자 없는 더미를 A 에 붙일지 가린다(`bare.py`, wetherilli 012)
+    catalog_letters = models.CharField(max_length=200, blank=True)
 
     class Meta:
         ordering = ["slab_no"]

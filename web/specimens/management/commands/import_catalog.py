@@ -5,6 +5,7 @@
 """
 from django.core.management.base import BaseCommand
 
+from specimens import bare
 from specimens.catalog import sync
 from specimens.models import Slab
 
@@ -22,3 +23,4 @@ class Command(BaseCommand):
             self.stderr.write(f"못 읽음: {e}")
         self.stdout.write(self.style.SUCCESS(
             f"슬랩 찾음 {found} · 목록에 없음 {missing} · 표본 채움 {filled} · 못 읽음 {len(errors)}"))
+        self.stdout.write(bare.summary())

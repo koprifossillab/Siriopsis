@@ -21,6 +21,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from . import bare
 from .models import Frame, Slab, Specimen, Stack
 from .names import label_of, parse_stem
 
@@ -34,6 +35,7 @@ class ScanStats:
     created: int = 0
     updated: int = 0
     unchanged: int = 0
+    bare: dict = field(default_factory=dict)    # 글자 없는 이름을 A 에 붙인 결과 (`bare.assign`, 012)
     errors: list = field(default_factory=list)
 
 
@@ -139,7 +141,7 @@ def save_stack(info):
     """read_stack 의 값을 테이블에 맞춘다. 돌려주는 값: 'created' | 'updated' | 'unchanged'."""
     name = info["name"]
     slab, _ = Slab.objects.get_or_create(slab_no=name["slab"], defaults={"year": name["year"]})
-    # 표본은 대문자 글자가 있을 때만 붙인다 (names.py). 이미 사람이 붙인 표본은 지우지 않는다
+    # 표본은 대문자 글자가 있을 때만 여기서 붙인다 (names.py). 글자 없는 이름은 scan 끝의 bare.assign 이 A 에 붙인다(012)
     specimen = None
     if name["letter"]:
         specimen, _ = Specimen.objects.get_or_create(slab=slab, letter=name["letter"])
@@ -188,4 +190,6 @@ def scan(root=None, under=None, log=None):
         setattr(st, result, getattr(st, result) + 1)
         if log and result != "unchanged":
             log(f"{result}: {lp.relative_to(root).parent}")
+    # 글자 없는 이름(`SP-2016-494`)은 A 표본에 — 예외 슬랩은 비워 둔다 (012)
+    st.bare = bare.assign()
     return st

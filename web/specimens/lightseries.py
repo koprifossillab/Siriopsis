@@ -28,6 +28,7 @@ from pathlib import Path
 from django.conf import settings
 from django.db import transaction
 
+from . import bare
 from .lightstacks import SKIP_DIRS, _exif
 from .models import Frame, Slab, Specimen, Stack
 from .names import parse_stem
@@ -56,6 +57,7 @@ class SeriesStats:
     kept: int = 0           # 사람이 고친 묶음이라 건너뛴 것
     orphaned: int = 0       # 사람이 고친 묶음인데 폴더가 사라진 것 — 지우지 않는다
     exif_read: int = 0
+    bare: dict = field(default_factory=dict)    # 글자 없는 이름을 A 에 붙인 결과 (`bare.assign`, 012)
     errors: list = field(default_factory=list)
 
 
@@ -255,4 +257,6 @@ def scan(root=None, under=None, workers=16, log=None):
         st.removed = gone.count()
         gone.delete()
         st.orphaned = len(orphans)
+    # 글자 없는 이름(`SP-2022-49`)은 A 표본에 — 예외 슬랩은 비워 둔다 (012)
+    st.bare = bare.assign()
     return st

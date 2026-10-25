@@ -5,6 +5,7 @@
 """
 from django.core.management.base import BaseCommand
 
+from specimens import bare
 from specimens.lightstacks import scan
 
 
@@ -22,3 +23,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f".lp {st.found} · 새로 {st.created} · 바뀜 {st.updated} · 그대로 {st.unchanged} · "
             f"못 읽음 {len(st.errors)}"))
+        self.stdout.write(bare.summary())
