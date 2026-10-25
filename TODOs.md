@@ -4,13 +4,13 @@
 
 ## 사용자 요청 (2026-10-25) — 차례대로 하나씩
 
-1. **스케일바와 길이 재기** (빛 묶음)
+1. **스케일바와 길이 재기** (빛 묶음) — 됨 (wetherilli 010 — `pipeline/ruler_scale.py` → `import_scales`, 더미 화면의 스케일바·「길이」). 운영 반입은 다음 판에서
    - 빛 묶음의 **1 번 컷에는 늘 자가 있다**(스케일바 구실) → 자의 눈금에서 배율(mm/px)을 추론해 묶음에 둔다. 맞춤 전에는 같은 묶음의 다른 컷도 같은 배율로 본다
    - 그 배율로 화면에 **스케일바**를 넣는다. **더블클릭하면 스타일을 바꾼다** — DiaRUGA `viewer/_detview_js.html` 의 `updateScaleBar`·`sb.addEventListener('dblclick'…)`·`sbstyles`, 설정은 브라우저(`localStorage`)에. 그대로 옮긴다
    - **길이 재기 도구** — GSM 지도의 「도구」 묶음(`viewer/map.html` `#toolbar` — 거리 재기: 눌러 가며 잇고 두 번 누르면 끝)처럼, 더미 화면의 떠 있는 「보기」 도구 옆에
    - 배율을 못 구한 묶음(자가 안 보임·딴 구도)은 스케일바와 재기를 막고 그렇다고 적는다
    - DiaRUGA 에도 길이 재기가 있다(230, GSM 을 본떠 만듦 — `_detview_js.html` 「길이 재기」 `meas*`). 그것을 옮긴다
-2. **표본 테두리 그리기** (검토 2026-10-25 — 답을 기다림)
+2. **표본 테두리 그리기** (검토 2026-10-25 — 사용자가 받아들였다) — 됨 (wetherilli 011 — `Outline`, 더미 화면의 「테두리」)
    - **한 더미에 테두리 하나.** DiaRUGA 의 판정·개체·대표·번지기(`ObjectReview`·`DiatomObject`·`_spread_drawn`)는 안 가져온다 —
      테두리가 더미에 붙으면 「모든 컷에 퍼진다」는 따로 할 일이 없다
    - 가져올 것: 점 찍어 그리기(첫 점 근처를 누르면 닫힘, Backspace 로 점 하나 무르기)와 점 끌어 고치기(`drawStart`·`drawPoint`·`editStart`),

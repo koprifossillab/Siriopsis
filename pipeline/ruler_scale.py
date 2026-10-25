@@ -359,7 +359,7 @@ def measure_rgb(rgb, scale):
             if got is None:
                 continue
             a, nt, rms, pos = got["a"], got["nt"], got["rms"], got["pos"]
-            # 앞 절반·뒤 절반을 따로 맞춰 견준다
+            # 앞 절반·뒤 절반을 따로 맞춰 비교한다
             mid = (pos[0] + pos[-1]) / 2
             halves = 1.0
             if nt >= 8:
