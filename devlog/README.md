@@ -13,6 +13,7 @@
 
 | 글 | 무엇 |
 |---|---|
+| [20261025_wetherilli_009](20261025_wetherilli_009_slab_views_and_slab_page.md) | 슬랩 전경(dorsal) 반입 — kind `slab` 3,915, 슬랩 화면을 왼쪽 전경·속성 / 오른쪽 더미 카드로 |
 | [20261025_wetherilli_008](20261025_wetherilli_008_regroup_and_backup.md) | 묶음 고치기(가르기·합치기·지우기·컷 숨기기, 반입이 덮지 않는다)와 백업(시간별·NAS·`/healthz` 깃발) |
 | [20261025_wetherilli_007](20261025_wetherilli_007_paleolab_route.md) | paleolab 에 길 `v0.1.0` — compose(8100, NAS 읽기 전용)·nginx 조각·install.sh, gunicorn 실 넷 |
 | [20261025_wetherilli_006](20261025_wetherilli_006_diaruga_look.md) | DiaRUGA 모양으로 — 연도·번호(NAS 열 개 폴더) 묶음 목록, 시야 화면 구성, 로고·대기 화면·설정·판 이력·바닥글 |
