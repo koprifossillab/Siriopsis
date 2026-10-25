@@ -78,7 +78,10 @@ class Stack(models.Model):
     label = models.CharField(max_length=64)
     # SOURCE_ROOT 기준 상대경로. 원본은 읽기만 한다. 빛 묶음은 한 폴더에 여럿이 든다 — 열쇠는 (폴더, 종류, 이름)
     source_dir = models.CharField(max_length=500)
-    # 같은 이름·처리의 묶음이 다른 폴더에도 있었던 수(사본). 정본 고르기는 lightseries.py
+    # 같은 이름·처리의 묶음이 다른 폴더에도 있으면 하나를 정본으로 고르고(lightseries.py) 나머지는 사본으로 넣는다.
+    # 사본은 정본을 가리킨다(정본은 null). other_copies 는 정본에만 — 사본의 수
+    copy_of = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name="copies")
     other_copies = models.PositiveSmallIntegerField(default=0)
     lp_file = models.CharField(max_length=200, blank=True)
     ptm_file = models.CharField(max_length=200, blank=True)

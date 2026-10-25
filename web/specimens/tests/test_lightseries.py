@@ -59,19 +59,36 @@ class ScanLightSeriesTest(SafeTestCase):
         shots(self.root, "SP-2016 샘플별/6D 외/2016-B&S&A/2017 .05. 10 Baguette", "SP-2016-47K", [1, 2, 3])
         shots(self.root, f"{MAIN}/알씨원본", "SP-2016-47K", [1, 2, 3])
         shots(self.root, "SP-2016 샘플별/6D 외/mg코팅/mg 코팅 1", "SP-2016-47K", [1, 2])
-        scan(root=self.root)
-        plain = Stack.objects.get(preparation="none")
+        st = scan(root=self.root)
+        self.assertEqual((st.chosen, st.copies), (2, 2))
+        plain = Stack.objects.get(preparation="none", copy_of=None)
         self.assertEqual((plain.source_dir, plain.other_copies), (MAIN, 2))
+        # 사본도 넣어 정본에 잇는다 — 사용자가 사본도 보자고 했다
+        self.assertEqual(sorted(plain.copies.values_list("source_dir", flat=True)),
+                         ["SP-2016 샘플별/6D 외/2016-B&S&A/2017 .05. 10 Baguette", f"{MAIN}/알씨원본"])
+        self.assertEqual(Frame.objects.filter(stack__copy_of=plain).count(), 6)
         coated = Stack.objects.get(preparation="mg_coated")    # 코팅한 것은 사본이 아니라 다른 묶음
-        self.assertEqual(coated.n_frames, 2)
+        self.assertEqual((coated.n_frames, coated.copy_of), (2, None))
 
-    def test_more_frames_wins_and_old_choice_is_removed(self):
+    def test_more_frames_wins_and_old_primary_becomes_copy(self):
         shots(self.root, MAIN, "SP-2016-47K", [1, 2])
         scan(root=self.root)
         shots(self.root, f"{MAIN}/SP-2016(41-50)", "SP-2016-47K", [1, 2, 3])
         st = scan(root=self.root)
-        self.assertEqual((st.created, st.removed), (1, 1))
-        self.assertEqual(Stack.objects.get().source_dir, f"{MAIN}/SP-2016(41-50)")
+        self.assertEqual((st.created, st.updated, st.removed), (1, 1, 0))
+        primary = Stack.objects.get(copy_of=None)
+        self.assertEqual(primary.source_dir, f"{MAIN}/SP-2016(41-50)")
+        self.assertEqual(Stack.objects.get(copy_of=primary).source_dir, MAIN)
+
+    def test_vanished_folder_is_removed(self):
+        shots(self.root, MAIN, "SP-2016-47K", [1, 2])
+        d = shots(self.root, f"{MAIN}/알씨원본", "SP-2016-47K", [1, 2])
+        shots(self.root, MAIN, "SP-2016-48A", [1, 2])
+        scan(root=self.root)
+        shutil.rmtree(d)
+        st = scan(root=self.root)
+        self.assertEqual(st.removed, 1)
+        self.assertEqual(Stack.objects.get(label="SP-2016-47K").other_copies, 0)
 
     def test_missing_root_deletes_nothing(self):
         shots(self.root, MAIN, "SP-2016-47K", [1, 2])

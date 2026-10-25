@@ -21,6 +21,12 @@
 - 슬랩·표본에서 phyloserver 상세 화면으로 가는 링크(`catalog_id`)
 - 축소본 캐시 `/data/Siriopsis/thumbcache` + `warm_thumbs`(컷 6만 — 화면 폭 축소본만 미리) · 브라우저 시험
 
+## 묶음 고치기 (뷰어에서, 004)
+
+- DiaRUGA `web/viewer/regroup.py` 와 시야 화면의 가르기·합치기·삭제를 옮긴다 — 컷을 다른 묶음으로, 묶음 둘을 하나로, 묶음·컷 지우기(숨김)
+- **반입이 사람의 손을 덮지 않게** — 손댄 묶음 표시, 반입은 그 묶음을 건너뛰고 새 컷은 「묶이지 않은 컷」으로. 같은 커밋에서 `save_series`·지우기를 바꾼다
+- 그때부터 백업이 계약 — 운영 전에
+
 ## paleolab 에 길 (`v0.1.0`)
 
 - Cropobite 에서 `deploy/srv/docker-compose.yml`(127.0.0.1:8100, NAS 읽기 전용 마운트)·`deploy/nginx/Siriopsis-subpath.conf`·`deploy/host/{install,deploy,smoke}.sh`

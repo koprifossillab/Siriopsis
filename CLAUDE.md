@@ -71,11 +71,13 @@ DB(`Siriopsis.db`). **기술이 소문자를 강제하는 자리만 `siriopsis`*
 paleoadmin 요청(`temp/`)·사람이 넘겨줄 자료를 여기에 둔다. 만드는 파일·폴더 이름은 영문. 사정은 [P01](devlog/20261025_wetherilli_P01_stages.md) §자료.
 
 - `SP-<연도> 샘플별/SP-<연도>(<번호 구간>)/SP-<연도>-<슬랩><표본>-<번호>.JPG` — **카탈로그 빛 묶음**. 번호가 빛을 달리한 컷이다.
-  같은 이름이 여러 폴더에 사본으로 있다 — 정본은 `specimens/lightseries.py` 의 규칙이 고른다. `output/` 은 줄인 사본이라 읽지 않는다.
+  같은 이름이 여러 폴더에 사본으로 있다 — 정본은 `specimens/lightseries.py` 의 규칙이 고르고, 사본도 넣어 정본에 잇는다(`copy_of`). `output/` 은 줄인 사본이라 읽지 않는다.
   `(dorsal)`·`(vent)`(슬랩 전경), `(ethanol)`·`(water)`(액침)이 붙은 것은 빛 묶음이 아니다(아직 안 읽는다)
 - `SP-2016 샘플별/6D 외/PTM{, white coated}/<표본>/IMG_*.JPG + <표본>.lp + <표본>.ptm` — **PTM 촬영 22 벌**(벌마다 50 컷 + 빛 벡터)
 - 목록 엑셀(`SP-*_Catalog*.xlsx`) — 옛 사본. **분류 정보는 phyloserver 에서 읽는다**(아래)
 - `@eaDir`·`Thumbs.db`·`*@SynoEAStream` 은 NAS 가 만든 것 — 읽지 않는다
+
+**묶음은 앞으로 사람이 고친다**(가르기·합치기·삭제 — DiaRUGA regroup, 004). 그 기능이 들어오면 **반입은 사람이 손댄 묶음을 다시 만들지 않는다.**
 
 **분류 정보의 원천은 phyloserver `siriuspasset`**(`http://paleolab/siriuspasset/specimen_list/`, 연구실이 고쳐 가는 목록).
 JSON API 가 없어 `import_catalog` 가 목록 화면의 표를 읽는다(`specimens/catalog.py`) — 읽기만, 테이블에 있는 슬랩만.

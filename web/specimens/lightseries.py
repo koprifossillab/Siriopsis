@@ -5,10 +5,11 @@
 2026-10-25 조사(9,054 이름)로 절반 남짓은 미리보기 정밀도에서 구도가 그대로였고, 나머지는 조금씩 어긋나거나
 딴 구도 컷이 섞여 있다 — 맞춤은 다음 단계이고, 여기서는 묶음을 있는 그대로 넣는다.
 
-**정본 고르기** — 같은 이름·같은 처리의 묶음이 여러 폴더에 있다(구간 폴더 안의 같은 이름 하위 폴더, `알씨원본`,
+**정본과 사본** — 같은 이름·같은 처리의 묶음이 여러 폴더에 있다(구간 폴더 안의 같은 이름 하위 폴더, `알씨원본`,
 `2016.12.25 USB백업`, `6D 외/2016-B&S&A` …). 이름이 같아도 바이트가 다른 것이 많아 어느 쪽이 원본인지 파일로는
-가릴 수 없다. 그래서 규칙으로 하나를 고르고 나머지 수를 `other_copies` 에 남긴다:
-컷이 많은 쪽 → 사본 표시 폴더(`알씨원본`·`USB백업`)가 아닌 쪽 → 얕은 경로 → 경로 글자순.
+가릴 수 없다. 그래서 규칙으로 하나를 정본으로 고르고 — 컷이 많은 쪽 → 사본 표시 폴더(`알씨원본`·`USB백업`)가 아닌 쪽 →
+얕은 경로 → 경로 글자순 — **나머지도 사본으로 넣어 정본에 잇는다**(`copy_of`). 사용자가 사본도 볼 수 있게 하라고 했다(2026-10-25).
+정본의 컷이 한 장뿐이면 그 대상은 통째로 넣지 않는다.
 **정본 고르기는 전체를 훑을 때만 뜻이 있다** — `--under` 로 일부만 훑으면 고르기도 그 안에서만 하고, 사라진 묶음을 지우지 않는다.
 
 **원본은 읽기만 한다.** 몇 번을 돌려도 같다. EXIF 는 테이블에 없는 컷만 읽는다(다시 돌릴 때 NAS 를 덜 읽는다).
@@ -42,6 +43,7 @@ MIN_FRAMES = 2          # 한 장짜리는 묶음이 아니다
 class SeriesStats:
     names: int = 0          # 찾은 이름 묶음(폴더 포함)
     chosen: int = 0         # 정본으로 고른 묶음
+    copies: int = 0         # 정본에 이은 사본
     single: int = 0         # 한 장뿐이라 뺀 것
     created: int = 0
     updated: int = 0
@@ -80,7 +82,7 @@ def _rank(rel_dir, n):
 
 
 def choose(groups):
-    """같은 대상(슬랩·글자·소문자·처리)의 묶음 중 정본 하나씩. → [(폴더, 이름, 컷들, 다른 사본 수)]"""
+    """같은 대상(슬랩·글자·소문자·처리)마다 정본과 사본. → [[(폴더, 이름, 컷들), …], …] — 각 목록의 첫째가 정본"""
     by_target = defaultdict(list)
     for (rel, name), shots in groups.items():
         p = parse_stem(name)
@@ -90,8 +92,7 @@ def choose(groups):
     out = []
     for cands in by_target.values():
         cands.sort(key=lambda c: _rank(c[0], len(c[2])))
-        rel, name, shots = cands[0]
-        out.append((rel, name, sorted(shots), len(cands) - 1))
+        out.append([(rel, name, sorted(shots)) for rel, name, shots in cands])
     return out
 
 
@@ -100,7 +101,7 @@ def _frame_key(fr):
 
 
 @transaction.atomic
-def save_series(rel, name, shots, copies, exif):
+def save_series(rel, name, shots, exif, copy_of=None, copies=0):
     p = parse_stem(name)
     slab, _ = Slab.objects.get_or_create(slab_no=p["slab"], defaults={"year": p["year"]})
     specimen = None
@@ -117,6 +118,7 @@ def save_series(rel, name, shots, copies, exif):
     values = {
         "slab": slab, "kind": Stack.Kind.SERIES, "preparation": preparation_of(rel),
         "view": Stack.View.WHOLE, "label": name, "source_dir": rel, "other_copies": copies,
+        "copy_of": copy_of,
         "n_frames": len(frames), "width": w, "height": h, "camera": first[2], "captured_at": first[3],
     }
     stack = Stack.objects.filter(source_dir=rel, kind=Stack.Kind.SERIES, label=name).first()
@@ -157,18 +159,20 @@ def scan(root=None, under=None, workers=16, log=None):
     if not groups:
         st.errors.append(f"빛 묶음을 하나도 못 찾았다: {start} — 지우지 않고 멈춘다")
         return st
-    picked = choose(groups)
-    st.single = sum(1 for c in picked if len(c[2]) < MIN_FRAMES)
-    picked = [c for c in picked if len(c[2]) >= MIN_FRAMES]
-    st.chosen = len(picked)
+    targets = choose(groups)
+    st.single = sum(1 for t in targets if len(t[0][2]) < MIN_FRAMES)
+    targets = [t for t in targets if len(t[0][2]) >= MIN_FRAMES]
+    st.chosen = len(targets)
+    st.copies = sum(len(t) - 1 for t in targets)
+    picked = [c for t in targets for c in t]
     if log:
-        log(f"이름 묶음 {st.names} → 정본 {st.chosen} (한 장뿐 {st.single})")
+        log(f"이름 묶음 {st.names} → 정본 {st.chosen} · 사본 {st.copies} (한 장뿐 {st.single})")
 
     # EXIF: 테이블에 이미 있는 컷은 그 값을 쓴다 (카메라는 묶음에만 적혀 있다)
     exif = {path: (w, h, cam, at) for path, w, h, cam, at in
             Frame.objects.filter(stack__kind=Stack.Kind.SERIES)
             .values_list("path", "width", "height", "stack__camera", "captured_at")}
-    need = [f"{rel}/{fname}" for rel, _, shots, _ in picked for _, fname in shots
+    need = [f"{rel}/{fname}" for rel, _, shots in picked for _, fname in shots
             if f"{rel}/{fname}" not in exif]
 
     def read(path):
@@ -187,18 +191,29 @@ def scan(root=None, under=None, workers=16, log=None):
             if log and k and k % 5000 == 0:
                 log(f"EXIF {k}/{len(need)}")
 
-    for rel, name, shots, copies in picked:
+    def readable(rel, name, shots):
         if any(f"{rel}/{f}" not in exif for _, f in shots):
             # 테이블의 것은 그대로 둔다 — 한 번 못 읽었다고 지우지 않는다
             st.errors.append(f"{rel}/{name}: 못 읽은 컷이 있어 건너뜀")
+            return False
+        return True
+
+    for target in targets:
+        (rel, name, shots), rest = target[0], target[1:]
+        if not readable(rel, name, shots):
             continue
-        result, _ = save_series(rel, name, shots, copies, exif)
+        # 정본을 먼저 — 사본이 가리킬 행이 있어야 한다. 정본이 바뀌면 옛 정본은 사본이 된다
+        result, primary_id = save_series(rel, name, shots, exif, copies=len(rest))
         setattr(st, result, getattr(st, result) + 1)
+        for c_rel, c_name, c_shots in rest:
+            if readable(c_rel, c_name, c_shots):
+                result, _ = save_series(c_rel, c_name, c_shots, exif, copy_of=Stack(id=primary_id))
+                setattr(st, result, getattr(st, result) + 1)
 
     if not under:
-        # 전체를 훑었을 때만: 정본에서 빠진 묶음(폴더가 사라졌거나 더 나은 사본이 생긴 것)을 지운다.
-        # 못 읽어 건너뛴 묶음도 정본 목록에 있으니 지워지지 않는다
-        picked_keys = {(rel, name) for rel, name, _, _ in picked}
+        # 전체를 훑었을 때만: 더는 없는 묶음(폴더가 사라진 것)을 지운다.
+        # 못 읽어 건너뛴 묶음도 picked 에 있으니 지워지지 않는다
+        picked_keys = {(rel, name) for rel, name, _ in picked}
         gone_ids = [sid for sid, rel, name in Stack.objects.filter(kind=Stack.Kind.SERIES)
                     .values_list("id", "source_dir", "label") if (rel, name) not in picked_keys]
         gone = Stack.objects.filter(id__in=gone_ids)
