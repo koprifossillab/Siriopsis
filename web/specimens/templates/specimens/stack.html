@@ -1,0 +1,436 @@
+{% extends "core/base.html" %}
+{% load specimens_extras %}
+{% block title %}{{ stack.label }} — {% endblock %}
+{% comment %}
+  더미 화면 (P01 2단계, wetherilli 005). DiaRUGA 시야 화면(`group.html`·`_shots.html`)의 자리다 — 큰 그림 하나와
+  컷 줄, 줄에 올리면 미리 보고 누르면 정한다. **종류마다 다르게 건다**(사용자 2026-10-25):
+  - `series`(카탈로그 빛 묶음) — 컷 번호 줄. ←/→ 와 숫자 키
+  - `ptm` — 그 위에 **빛 방향 판**: 50 방향을 위에서 내려다본 원. 누르거나 끌면 가장 가까운 방향의 컷으로.
+    ←/→ 는 방위각 차례로 한 바퀴, ↑/↓ 는 더 높은·낮은 빛으로
+  확대·이동은 DiaRUGA `_atlasview.html` 에서 왔다(아래 스크립트 머리).
+
+  **컷을 화면 폭 축소본(1600)으로 모두 미리 받는다** — 판을 끌 때 끊기면 빛이 도는 것이 안 보인다(P01).
+  확대해 축소본보다 커지면 **지금 컷만** 원본으로 바꾼다(장당 5~10 MB).
+{% endcomment %}
+{% block subtitle %}<a href="{% url 'home' %}">목록</a> /
+  <a href="{% url 'slab' stack.slab.slab_no %}">{{ stack.slab.slab_no }}</a> /
+  <b>{{ stack.label }}</b> ·
+  <span class="chip{% if stack.kind == 'ptm' %} ptm{% endif %}">{{ stack.get_kind_display }}</span>
+  {% if stack.preparation != 'none' %}<span class="chip">{{ stack.get_preparation_display }}</span>{% endif %}
+  {% if stack.view == 'zoom' %}<span class="chip">확대</span>{% endif %}
+  {% if stack.copy_of %}<span class="chip copy">사본</span>{% endif %}
+  · {{ stack.n_frames }}컷
+  {% if stack.specimen and stack.specimen.taxon_name %} · <i>{{ stack.specimen.taxon_name }}</i>{% endif %}{% endblock %}
+{% block nav %}
+  {% if prev_id %}<a href="{% url 'stack' prev_id %}" id="go-prev" title="앞 더미 (PageUp)">← 앞 더미</a>{% endif %}
+  {% if next_id %}<a href="{% url 'stack' next_id %}" id="go-next" title="뒤 더미 (PageDown)">뒤 더미 →</a>{% endif %}
+{% endblock %}
+{% block mainclass %} class="wide"{% endblock %}
+{% block head %}
+<style>
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 1rem; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+  .bar { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin-bottom: .5rem; font-size: .9rem; }
+  .bar .cap { font-weight: 600; min-width: 9rem; }
+  .bar label { display: inline-flex; gap: .3rem; align-items: center; color: var(--dim); }
+  .bar input[type=range] { width: 6rem; }
+  .zoom { display: inline-flex; gap: .3rem; align-items: center; }
+  .zoom .lv { font-variant-numeric: tabular-nums; color: var(--dim); min-width: 4.4em; text-align: right; }
+  .mode { display: inline-flex; }
+  .mode button { border: 1px solid var(--line); background: var(--panel); padding: .15rem .55rem; cursor: pointer; }
+  .mode button:first-child { border-radius: 4px 0 0 4px; }
+  .mode button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
+  .mode button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .keys { color: var(--dim); font-size: .8rem; margin-left: auto; }
+
+  .aview { position: relative; overflow: hidden; height: 70vh; min-height: 320px; background: var(--view);
+           border-radius: 6px; touch-action: none; }
+  .aview.grabbable { cursor: grab; }
+  .aview.grabbing { cursor: grabbing; }
+  #acanvas { transform-origin: center center; will-change: transform; width: 100%; height: 100%;
+             display: flex; align-items: center; justify-content: center; }
+  #main { max-width: 100%; max-height: 100%; display: block; user-select: none; -webkit-user-drag: none; }
+  .loading { position: absolute; right: .6rem; bottom: .5rem; color: #bbb; font-size: .8rem;
+             background: rgba(0,0,0,.45); padding: .1rem .45rem; border-radius: 4px; }
+
+  .strip { display: flex; gap: 4px; overflow-x: auto; padding: 6px 0; }
+  .shot { flex: 0 0 auto; border: 2px solid transparent; border-radius: 4px; padding: 0; background: none;
+          cursor: pointer; position: relative; }
+  .shot img { display: block; height: 64px; width: auto; border-radius: 2px; background: #ccc; }
+  .shot .no { position: absolute; left: 3px; top: 2px; font-size: .72rem; color: #fff;
+              text-shadow: 0 0 3px #000, 0 0 2px #000; }
+  .shot.on { border-color: var(--accent); }
+  .shot.peek { border-color: #9cc3ee; }
+
+  .side { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .7rem; font-size: .86rem; }
+  .side h3 { font-size: .9rem; margin: .2rem 0 .4rem; }
+  .side dl { display: grid; grid-template-columns: auto 1fr; gap: .15rem .6rem; margin: 0; }
+  .side dt { color: var(--dim); }
+  .side dd { margin: 0; overflow-wrap: anywhere; }
+  .side ul { margin: 0; padding-left: 1.1rem; }
+  .side li { margin: .15rem 0; overflow-wrap: anywhere; }
+  .side section + section { margin-top: .9rem; border-top: 1px solid var(--line); padding-top: .6rem; }
+
+  #pad { width: 100%; max-width: 250px; display: block; margin: 0 auto; touch-action: none; cursor: crosshair; }
+  #pad .rim { fill: #f3f3f0; stroke: #999; stroke-width: .012; }
+  #pad .ring { fill: none; stroke: #ccc; stroke-width: .006; stroke-dasharray: .03 .02; }
+  #pad .axis { stroke: #ccc; stroke-width: .006; }
+  #pad .lbl { font-size: .085px; fill: #999; text-anchor: middle; dominant-baseline: middle; }
+  #pad .dot { fill: #8aa4c0; }
+  #pad .dot.peek { fill: #f0a830; }
+  #pad .dot.on { fill: #d0451b; }
+  .padnote { color: var(--dim); font-size: .78rem; margin: .3rem 0 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="layout">
+  <div>
+    <div class="bar">
+      <span class="cap" id="cap"></span>
+      <span class="zoom">
+        <button type="button" id="zoom-out" title="작게 (-)">−</button>
+        <span class="lv" id="zoom-lv">×1.0</span>
+        <button type="button" id="zoom-in" title="크게 (+)">+</button>
+        <button type="button" id="zoom-fit" title="화면에 맞춘다 (0)">맞춤</button>
+      </span>
+      <span class="mode" role="group" aria-label="해상도">
+        <button type="button" data-mode="low" title="컷을 1600 폭으로 받는다 — 넘기기가 가볍다. 확대하면 흐려진다 (h)">저해상도</button>
+        <button type="button" data-mode="high" title="컷을 2560 폭으로 받고, 그보다 확대하면 지금 컷만 원본으로 (h)">고해상도</button>
+      </span>
+      <label>밝기 <input type="range" id="bright" min="50" max="200" value="100"></label>
+      <label>대비 <input type="range" id="contrast" min="50" max="250" value="100"></label>
+      <span class="keys">{% if stack.kind == 'ptm' %}← → 방위 · ↑ ↓ 고도{% else %}← → 컷 · 숫자 키{% endif %} · 휠 확대 · h 해상도 · PageUp/Down 더미</span>
+    </div>
+    <div class="aview" id="aview">
+      <div id="acanvas"><img id="main" alt="{{ stack.label }}" draggable="false"></div>
+      <span class="loading" id="loading"></span>
+    </div>
+    <div class="strip" id="strip">
+      {% for f in frames %}
+      <button type="button" class="shot" data-i="{{ forloop.counter0 }}"
+              title="{% if f.shot_no is not None %}{{ f.shot_no }}번 · {% endif %}{{ f.path|cut:stack.source_dir|cut:'/' }}{% if f.light_z is not None %} · 방위 {{ f.azimuth|floatformat:0 }}° 고도 {{ f.elevation|floatformat:0 }}°{% endif %}">
+        <img loading="lazy" src="{% frame_url f.id 200 %}" alt="">
+        <span class="no">{% if f.shot_no is not None %}{{ f.shot_no }}{% else %}{{ forloop.counter }}{% endif %}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <aside class="side">
+    {% if stack.kind == 'ptm' %}
+    <section>
+      <h3>빛 방향</h3>
+      <svg id="pad" viewBox="-1.12 -1.12 2.24 2.24" aria-label="빛 방향 판">
+        <circle class="rim" r="1"></circle>
+        <circle class="ring" r="0.866"></circle>
+        <circle class="ring" r="0.5"></circle>
+        <line class="axis" x1="-1" y1="0" x2="1" y2="0"></line>
+        <line class="axis" x1="0" y1="-1" x2="0" y2="1"></line>
+        <text class="lbl" x="0" y="-1.07">+y</text>
+        <text class="lbl" x="1.07" y="0">+x</text>
+        <g id="dots"></g>
+      </svg>
+      <p class="padnote">위에서 내려다본 빛의 자리 — 가운데가 바로 위, 테가 수평. 고리는 고도 30°·60°.
+        <b>x·y 축이 그림의 어느 쪽인지는 아직 그림자로 맞추지 않았다</b>(+x 오른쪽, +y 위로 그렸다).</p>
+    </section>
+    {% endif %}
+    <section>
+      <h3>더미</h3>
+      <dl>
+        <dt>슬랩</dt><dd><a href="{% url 'slab' stack.slab.slab_no %}">{{ stack.slab.slab_no }}</a>
+          {% if stack.slab.catalog_id %}<a href="{{ catalog }}slab_detail/{{ stack.slab.catalog_id }}/" target="_blank" rel="noopener">↗</a>{% endif %}</dd>
+        <dt>표본</dt><dd>{% if stack.specimen %}{{ stack.specimen.specimen_no }}
+          {% if stack.specimen.catalog_id %}<a href="{{ catalog }}specimen_detail/{{ stack.specimen.catalog_id }}/" target="_blank" rel="noopener">↗</a>{% endif %}
+          {% if stack.specimen.phylum %}<br><span class="dim">{{ stack.specimen.phylum }}</span>{% endif %}
+          {% else %}<span class="dim">정하지 않음</span>{% endif %}</dd>
+        <dt>처리</dt><dd>{{ stack.get_preparation_display }} · {{ stack.get_view_display }}</dd>
+        <dt>크기</dt><dd>{{ stack.width }} × {{ stack.height }}</dd>
+        {% if stack.camera %}<dt>카메라</dt><dd>{{ stack.camera }}</dd>{% endif %}
+        {% if stack.captured_at %}<dt>촬영</dt><dd>{{ stack.captured_at|date:"Y-m-d H:i" }}</dd>{% endif %}
+        <dt>폴더</dt><dd class="mono">{{ stack.source_dir }}</dd>
+        {% if stack.ptm_file %}<dt>PTM</dt><dd class="mono">{{ stack.ptm_file }}</dd>{% endif %}
+      </dl>
+    </section>
+    {% if family %}
+    <section>
+      <h3>같은 묶음 {{ family|length }}벌</h3>
+      <ul>
+        {% for s in family %}
+        <li>{% if s.id == stack.id %}<b>{% else %}<a href="{% url 'stack' s.id %}">{% endif %}{% if not s.copy_of_id %}정본{% else %}사본{% endif %} · {{ s.n_frames }}컷{% if s.id == stack.id %}</b>{% else %}</a>{% endif %}
+          <br><span class="mono dim">{{ s.source_dir }}</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+
+<script type="application/json" id="frames-data">{{ payload|json_dumps }}</script>
+<script>
+(function () {
+  var FR = JSON.parse(document.getElementById('frames-data').textContent);
+  if (!FR.length) return;
+  var IS_PTM = {% if stack.kind == 'ptm' %}true{% else %}false{% endif %};
+  var BASE = "{% url 'frame_image' 0 %}".replace('0.jpg', '');
+  function url(f, w) { return BASE + f.id + '.jpg' + (w ? '?w=' + w : ''); }
+  // 저해상도·고해상도 (사용자 2026-10-25, 005 §해상도). 잰 값(이 서버, 같은 망 밖은 더 느리다):
+  // 원본은 장당 7~8 MB 이고 **브라우저 캐시에 있어도 넘길 때마다 0.13~0.29 초**(18 MP 를 다시 푼다) — 판을 끌면 끊긴다.
+  // 1600 은 0.4~0.6 MB, 넘기기 0~30 ms. 2560 은 원본의 절반 폭이라 JPEG 를 1/2 로 풀어 만들어(장당 0.25 초, 한 번만)
+  // 0.8~1.3 MB, 넘기기 0~35 ms. 그래서 고해상도도 모든 컷을 미리 받고, 원본은 그보다 확대할 때 지금 컷만.
+  var WIDTH = { low: 1600, high: 2560 };
+  var MKEY = 'siriopsis.mode';
+  var mode = 'low';
+  try { if (localStorage.getItem(MKEY) === 'high') mode = 'high'; } catch (e) {}
+  var VIEW_W = WIDTH[mode];
+
+  var view = document.getElementById('aview');
+  var canvas = document.getElementById('acanvas');
+  var main = document.getElementById('main');
+  var cap = document.getElementById('cap');
+  var loading = document.getElementById('loading');
+  var shots = Array.prototype.slice.call(document.querySelectorAll('#strip .shot'));
+  var cur = 0, peek = null;
+
+  // --- 미리 받기 ------------------------------------------------------------
+  // 지금 컷에서부터 넷씩. 받은 것은 브라우저 캐시에 남아 src 를 바꾸면 곧바로 그려진다
+  // 해상도를 바꾸면 처음부터 다시 — 앞 해상도의 받기가 남아 있어도 차례(round)가 달라 그 결과는 세지 않는다
+  var got = 0, queue = [], round = 0;
+  function preload() {
+    round++; got = 0;
+    queue = FR.map(function (_, i) { return (cur + i) % FR.length; });
+    for (var n = 0; n < 4; n++) next(round);
+  }
+  function next(r) {
+    if (r !== round || !queue.length) return;
+    var i = queue.shift(), w = VIEW_W;
+    var im = new Image();
+    im.onload = im.onerror = function () {
+      if (r !== round) return;
+      got++;
+      loading.textContent = got < FR.length ? '미리 받는 중 ' + got + '/' + FR.length + ' · ' + w + ' 폭' : '';
+      next(r);
+    };
+    im.src = url(FR[i], w);
+  }
+
+  // --- 컷 바꾸기 ------------------------------------------------------------
+  function label(f) {
+    if (IS_PTM) return (f.seq + 1) + '/' + FR.length + ' · 방위 ' + Math.round(f.az) + '° · 고도 ' + Math.round(f.el) + '°';
+    return (f.no != null ? f.no + '번' : (f.seq + 1) + '') + ' · ' + f.name;
+  }
+  function draw(i) {
+    var f = FR[i];
+    cap.textContent = label(f);
+    if (hires) {
+      // 원본은 무겁다 — 다 받을 때까지 지금 그림을 둔다
+      var im = new Image();
+      im.onload = function () { if (shown === i) main.src = im.src; };
+      im.src = url(f);
+    } else {
+      main.src = url(f, VIEW_W);
+    }
+    shown = i;
+    shots.forEach(function (b, j) { b.classList.toggle('on', j === cur); b.classList.toggle('peek', j === peek && j !== cur); });
+    if (IS_PTM) paintDots();
+  }
+  var shown = -1;
+  function go(i) { cur = (i + FR.length) % FR.length; peek = null; draw(cur); remember(); }
+  function look(i) { peek = i; draw(i === null ? cur : i); }
+
+  shots.forEach(function (b, j) {
+    b.addEventListener('mouseenter', function () { look(j); });
+    b.addEventListener('click', function () { go(j); });
+  });
+  document.getElementById('strip').addEventListener('mouseleave', function () { look(null); });
+
+  // 어느 컷을 보던 중이었는지 — 더미마다, 창을 닫으면 잊는다
+  var SKEY = 'siriopsis.stack.{{ stack.id }}';
+  function remember() { try { sessionStorage.setItem(SKEY, String(cur)); } catch (e) {} }
+  try { var s = parseInt(sessionStorage.getItem(SKEY), 10); if (s >= 0 && s < FR.length) cur = s; } catch (e) {}
+
+  // --- 빛 방향 판 (PTM) -------------------------------------------------------
+  var dots = [];
+  if (IS_PTM) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var g = document.getElementById('dots');
+    FR.forEach(function (f, i) {
+      var c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', f.x); c.setAttribute('cy', -f.y); c.setAttribute('r', 0.045);
+      c.setAttribute('class', 'dot');
+      g.appendChild(c); dots.push(c);
+    });
+    var pad = document.getElementById('pad');
+    function nearest(e) {
+      var p = pad.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+      var q = p.matrixTransform(pad.getScreenCTM().inverse());
+      var best = 0, bd = Infinity;
+      FR.forEach(function (f, i) {
+        var d = (f.x - q.x) * (f.x - q.x) + (-f.y - q.y) * (-f.y - q.y);
+        if (d < bd) { bd = d; best = i; }
+      });
+      return best;
+    }
+    var pressing = false;
+    pad.addEventListener('pointerdown', function (e) { pressing = true; pad.setPointerCapture(e.pointerId); go(nearest(e)); });
+    pad.addEventListener('pointermove', function (e) {
+      var i = nearest(e);
+      if (pressing) { if (i !== cur) go(i); } else if (i !== peek) look(i);
+    });
+    pad.addEventListener('pointerup', function () { pressing = false; });
+    pad.addEventListener('pointerleave', function () { if (!pressing) look(null); });
+  }
+  function paintDots() {
+    dots.forEach(function (c, i) {
+      c.setAttribute('class', 'dot' + (i === cur ? ' on' : (i === peek ? ' peek' : '')));
+      c.setAttribute('r', i === cur ? 0.065 : 0.045);
+    });
+  }
+  // 방위각 차례 — ←/→ 는 이 차례로 한 바퀴
+  var byAz = FR.map(function (_, i) { return i; });
+  if (IS_PTM) byAz.sort(function (a, b) { return FR[a].az - FR[b].az || FR[a].el - FR[b].el; });
+  function stepAz(d) {
+    if (!IS_PTM) return go(cur + d);
+    var k = byAz.indexOf(cur);
+    go(byAz[(k + d + byAz.length) % byAz.length]);
+  }
+  function angDiff(a, b) { var d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+  function stepEl(up) {
+    var f = FR[cur], best = null, bs = Infinity;
+    FR.forEach(function (g, i) {
+      var de = g.el - f.el;
+      if (up ? de <= 3 : de >= -3) return;
+      var s = angDiff(g.az, f.az) + Math.abs(de) * 0.5;
+      if (s < bs) { bs = s; best = i; }
+    });
+    if (best !== null) go(best);
+  }
+
+  // --- 확대 / 이동 ----------------------------------------------------------
+  // DiaRUGA `_atlasview.html`(v0.37.1)에서 왔다 — 커서 아래 지점을 붙잡는 확대, 끌어 옮기기, 창 높이 재기.
+  // 배율은 곱수(×)로 말한다: 원본을 받아 온 때만 「원본」이라 적는다.
+  var k = 1, tx = 0, ty = 0, hires = false, MAXK = 16;
+  var lv = document.getElementById('zoom-lv');
+  function fitHeight() {
+    var top = view.getBoundingClientRect().top + window.scrollY;
+    var strip = document.getElementById('strip').getBoundingClientRect().height;
+    view.style.height = Math.max(320, window.innerHeight - top - strip - 30) + 'px';
+  }
+  function apply() {
+    canvas.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + k + ')';
+    view.classList.toggle('grabbable', k > 1);
+    lv.textContent = '×' + (k < 10 ? k.toFixed(1) : String(Math.round(k))) + (hires ? ' 원본' : '');
+    maybeHiRes();
+  }
+  function clampPan() {
+    var vw = view.clientWidth, vh = view.clientHeight;
+    var cw = (main.offsetWidth || vw) * k, ch = (main.offsetHeight || vh) * k;
+    var mx = Math.max(0, (cw - vw) / 2) + Math.min(vw, cw) * 0.25;
+    var my = Math.max(0, (ch - vh) / 2) + Math.min(vh, ch) * 0.25;
+    tx = Math.min(mx, Math.max(-mx, tx));
+    ty = Math.min(my, Math.max(-my, ty));
+  }
+  function zoomAt(nk, cx, cy) {
+    nk = Math.min(MAXK, Math.max(1, nk));
+    if (nk === k) return;
+    var r = view.getBoundingClientRect();
+    // 화면점 = 창중심 + t + k·(캔버스좌표) → t' = d − (k'/k)(d − t)
+    var dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+    tx = dx - (nk / k) * (dx - tx);
+    ty = dy - (nk / k) * (dy - ty);
+    k = nk;
+    if (k === 1) { fit(); return; }
+    clampPan();
+    apply();
+  }
+  function zoomStep(f) { var r = view.getBoundingClientRect(); zoomAt(k * f, r.left + r.width / 2, r.top + r.height / 2); }
+  // 맞춤으로 돌아오면 축소본으로 — 원본을 붙든 채 컷을 넘기면 장마다 몇 MB 를 받는다
+  function fit() { k = 1; tx = 0; ty = 0; if (hires) { hires = false; draw(shown); } apply(); }
+  // 축소본보다 크게 보기 시작하면 지금 컷을 원본으로 — 축소본 폭을 박지 않고 naturalWidth 로 잰다
+  // **저해상도에서는 원본으로 바꾸지 않는다** — 그 모드를 고른 까닭이 가벼움이다
+  function maybeHiRes() {
+    if (mode !== 'high' || hires || k === 1 || !main.naturalWidth) return;
+    if (main.offsetWidth * k * (window.devicePixelRatio || 1) <= main.naturalWidth * 1.1) return;
+    hires = true;
+    draw(shown);
+  }
+  view.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoomAt(k * (e.deltaY < 0 ? 1.18 : 1 / 1.18), e.clientX, e.clientY);
+  }, { passive: false });
+  var drag = null;
+  view.addEventListener('pointerdown', function (e) {
+    if (e.button !== 0 || k === 1) return;
+    drag = { x: e.clientX, y: e.clientY, tx: tx, ty: ty };
+    view.classList.add('grabbing'); view.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  view.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    tx = drag.tx + e.clientX - drag.x; ty = drag.ty + e.clientY - drag.y;
+    clampPan(); apply();
+  });
+  view.addEventListener('pointerup', function () { drag = null; view.classList.remove('grabbing'); });
+  view.addEventListener('dblclick', function (e) { if (k === 1) zoomAt(3, e.clientX, e.clientY); else fit(); });
+  document.getElementById('zoom-in').addEventListener('click', function () { zoomStep(1.25); });
+  document.getElementById('zoom-out').addEventListener('click', function () { zoomStep(1 / 1.25); });
+  document.getElementById('zoom-fit').addEventListener('click', fit);
+  main.addEventListener('load', function () { clampPan(); apply(); });
+  window.addEventListener('resize', function () { fitHeight(); clampPan(); apply(); });
+
+  // --- 해상도 고르기 ---------------------------------------------------------
+  var modeBtns = Array.prototype.slice.call(document.querySelectorAll('.mode button'));
+  function paintMode() { modeBtns.forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); }); }
+  function setMode(m) {
+    if (m === mode) return;
+    mode = m; VIEW_W = WIDTH[m];
+    try { localStorage.setItem(MKEY, m); } catch (e) {}
+    paintMode();
+    hires = false;
+    draw(shown); apply(); preload();
+  }
+  modeBtns.forEach(function (b) { b.addEventListener('click', function () { setMode(b.dataset.mode); }); });
+  paintMode();
+
+  // --- 밝기·대비 — 그림만 바꾼다(원본은 그대로) -----------------------------
+  var bright = document.getElementById('bright'), contrast = document.getElementById('contrast');
+  function tone() { main.style.filter = 'brightness(' + bright.value / 100 + ') contrast(' + contrast.value / 100 + ')'; }
+  bright.addEventListener('input', tone); contrast.addEventListener('input', tone);
+  bright.addEventListener('dblclick', function () { bright.value = 100; tone(); });
+  contrast.addEventListener('dblclick', function () { contrast.value = 100; tone(); });
+
+  // --- 키 -------------------------------------------------------------------
+  var prevA = document.getElementById('go-prev'), nextA = document.getElementById('go-next');
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var t = document.activeElement;
+    if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.type !== 'range') return;
+    switch (e.key) {
+      case 'ArrowLeft': stepAz(-1); break;
+      case 'ArrowRight': stepAz(1); break;
+      case 'ArrowUp': if (!IS_PTM) return; stepEl(true); break;
+      case 'ArrowDown': if (!IS_PTM) return; stepEl(false); break;
+      case 'PageUp': if (prevA) window.location.href = prevA.href; break;
+      case 'PageDown': if (nextA) window.location.href = nextA.href; break;
+      case '0': fit(); break;
+      case 'h': case 'H': setMode(mode === 'high' ? 'low' : 'high'); break;
+      case '+': case '=': zoomStep(1.25); break;
+      case '-': case '_': zoomStep(1 / 1.25); break;
+      default:
+        // 빛 묶음: 숫자 키는 그 번호의 컷으로
+        if (!IS_PTM && /^[1-9]$/.test(e.key)) {
+          var n = parseInt(e.key, 10);
+          var i = FR.findIndex(function (f) { return f.no === n; });
+          if (i >= 0) { go(i); break; }
+        }
+        return;
+    }
+    e.preventDefault();
+  });
+
+  fitHeight();
+  go(cur);
+  preload();
+  if (shots[cur]) shots[cur].scrollIntoView({ block: 'nearest', inline: 'center' });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "core/base.html" %}
+{% load specimens_extras %}
+{% block subtitle %}시리우스 파셋 표본 — 슬랩 <b>{{ page.paginator.count }}</b>{% endblock %}
+{% block head %}
+<style>
+  .find { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+  .find input[type=search] { min-width: 16rem; padding: .3rem .5rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .8rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+          color: inherit; display: block; }
+  .card:hover { border-color: var(--accent); text-decoration: none; }
+  .card .pic { aspect-ratio: 3 / 2; background: #ddd; display: block; width: 100%; object-fit: cover; }
+  .card .t { padding: .4rem .55rem .55rem; font-size: .88rem; }
+  .card .t, .card .t span { display: block; }
+  .card .taxa { color: var(--dim); font-style: italic; font-size: .82rem;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pager { margin: 1.2rem 0; display: flex; gap: .8rem; align-items: center; }
+</style>
+{% endblock %}
+{% block content %}
+<form class="find" method="get">
+  <input type="search" name="q" value="{{ q }}" placeholder="슬랩 번호·분류군 (예: 0052, Halkieria)" aria-label="찾기">
+  <select name="phylum" aria-label="문">
+    <option value="">문 전체</option>
+    {% for p in phyla %}<option value="{{ p }}"{% if p == phylum %} selected{% endif %}>{{ p }}</option>{% endfor %}
+  </select>
+  <select name="kind" aria-label="종류">
+    <option value="">종류 전체</option>
+    {% for v, l in kinds %}<option value="{{ v }}"{% if v == kind %} selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  <button type="submit">찾기</button>
+  {% if keep %}<a href="{% url 'home' %}">모두 보기</a>{% endif %}
+</form>
+
+{% if rows %}
+<div class="grid">
+  {% for r in rows %}
+  <a class="card" href="{% url 'slab' r.slab.slab_no %}">
+    {% if r.frame %}<img class="pic" loading="lazy" src="{% frame_url r.frame 400 %}" alt="{{ r.slab.slab_no }}">{% else %}<span class="pic"></span>{% endif %}
+    <span class="t"><b>{{ r.slab.slab_no }}</b>
+      <span class="dim">더미 {{ r.slab.n_stacks }}{% if r.slab.horizon %} · {{ r.slab.horizon }}{% endif %}</span>
+      <span class="taxa">{{ r.taxa|join:", "|default:"—" }}</span></span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="dim">맞는 슬랩이 없습니다.</p>
+{% endif %}
+
+{% if page.has_other_pages %}
+<nav class="pager">
+  {% if page.has_previous %}<a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}page={{ page.previous_page_number }}">← 앞</a>{% endif %}
+  <span class="dim">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}page={{ page.next_page_number }}">뒤 →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

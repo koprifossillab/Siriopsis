@@ -22,3 +22,4 @@ devlog/
 
 # 컨테이너 안에서는 ../kopri-devdocs 가 없어 끊어진 링크가 된다
 .guides
+thumbcache/

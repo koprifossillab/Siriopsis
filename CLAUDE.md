@@ -28,7 +28,7 @@ paleo-server 에서 도는 웹 앱(Django + Docker + SQLite + gunicorn + nginx �
 **표기는 `Siriopsis` 하나** — 저장소·경로(`/srv/Siriopsis`·`~/venv/Siriopsis`)·URL(`/Siriopsis/`)·
 DB(`Siriopsis.db`). **기술이 소문자를 강제하는 자리만 `siriopsis`** — Docker Hub 이미지
 (`koprifossillab/siriopsis`), 파이썬 패키지(`siriopsisweb`), `localStorage` 키.
-환경변수는 `SIRIOPSIS_*`. 앱은 `core`(첫 화면·`/healthz`)와 `specimens`(슬랩·표본·더미·컷, 반입).
+환경변수는 `SIRIOPSIS_*`. 앱은 `core`(`/healthz`·바탕 틀)와 `specimens`(슬랩·표본·더미·컷, 반입, 뷰어 화면·컷 서빙 `/frame/<id>.jpg?w=`).
 **슬랩·표본 이름은 phyloserver 꼴** — `SP-2016-0052`(번호 네 자리)·`SP-2016-0052-A`. NAS 의 `SP-2016-52A`·`52Z` 는 `specimens/names.py` 가 바꾼다
 (끝의 대문자 `Z` 는 확대 촬영, 표본 글자가 아니다 — 사용자 확인).
 

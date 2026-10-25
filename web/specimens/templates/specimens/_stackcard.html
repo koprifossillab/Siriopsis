@@ -1,0 +1,11 @@
+{% load specimens_extras %}
+<a class="scard" href="{% url 'stack' st.id %}">
+  {% if st.first_frame %}<img loading="lazy" src="{% frame_url st.first_frame 400 %}" alt="{{ st.label }}">{% else %}<span class="noimg"></span>{% endif %}
+  <span class="t">
+    <span class="chip{% if st.kind == 'ptm' %} ptm{% endif %}">{{ st.get_kind_display }}</span>
+    {% if st.preparation != 'none' %}<span class="chip">{{ st.get_preparation_display }}</span>{% endif %}
+    {% if st.view == 'zoom' %}<span class="chip">확대</span>{% endif %}
+    <b>{{ st.label }}</b>
+    <span class="dim">{{ st.n_frames }}컷{% if st.other_copies %} · 사본 {{ st.other_copies }}{% endif %}{% if st.captured_at %} · {{ st.captured_at|date:"Y-m-d" }}{% endif %}</span>
+  </span>
+</a>

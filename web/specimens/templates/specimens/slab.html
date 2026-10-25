@@ -1,0 +1,38 @@
+{% extends "core/base.html" %}
+{% block title %}{{ slab.slab_no }} — {% endblock %}
+{% block subtitle %}<a href="{% url 'home' %}">목록</a> / <b>{{ slab.slab_no }}</b>{% if slab.horizon %} · {{ slab.horizon }}{% endif %}{% endblock %}
+{% block nav %}{% if slab.catalog_id %}<a href="{{ catalog }}slab_detail/{{ slab.catalog_id }}/" target="_blank" rel="noopener">phyloserver 에서 ↗</a>{% else %}<span class="dim">phyloserver 목록에 없음</span>{% endif %}{% endblock %}
+{% block head %}
+<style>
+  section { margin-bottom: 1.6rem; }
+  h2 { font-size: 1.05rem; margin: 0 0 .3rem; display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+  h2 .taxon { font-style: italic; font-weight: 500; }
+  .remarks { color: var(--dim); font-size: .88rem; margin: 0 0 .5rem; }
+  .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .8rem; }
+  .scard { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+           color: inherit; display: block; }
+  .scard:hover { border-color: var(--accent); text-decoration: none; }
+  .scard img, .scard .noimg { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #ddd; }
+  .scard .t { display: block; padding: .4rem .55rem .55rem; font-size: .86rem; line-height: 1.6; }
+  .scard .t b { display: block; }
+</style>
+{% endblock %}
+{% block content %}
+{% for g in groups %}
+<section>
+  <h2>{{ g.specimen.specimen_no }}
+    {% if g.specimen.taxon_name %}<span class="taxon">{{ g.specimen.taxon_name }}</span>{% endif %}
+    {% if g.specimen.phylum %}<span class="dim">{{ g.specimen.phylum }}</span>{% endif %}
+    {% if g.specimen.catalog_id %}<a href="{{ catalog }}specimen_detail/{{ g.specimen.catalog_id }}/" target="_blank" rel="noopener" class="dim">↗</a>{% endif %}
+  </h2>
+  {% if g.specimen.remarks %}<p class="remarks">{{ g.specimen.remarks }}</p>{% endif %}
+  <div class="row">{% for st in g.stacks %}{% include "specimens/_stackcard.html" %}{% endfor %}</div>
+</section>
+{% endfor %}
+{% if loose %}
+<section>
+  <h2>표본 글자 없음 <span class="dim">— 이름에 표본 글자가 없는 더미. 어느 표본인지는 사람이 정한다</span></h2>
+  <div class="row">{% for st in loose %}{% include "specimens/_stackcard.html" %}{% endfor %}</div>
+</section>
+{% endif %}
+{% endblock %}

@@ -13,3 +13,6 @@ Siriopsis.db
 Siriopsis.db-wal
 Siriopsis.db-shm
 backup/
+
+# 컷 축소본 캐시 — 다시 만들 수 있다
+thumbcache/

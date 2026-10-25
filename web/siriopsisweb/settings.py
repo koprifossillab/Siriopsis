@@ -127,6 +127,12 @@ SOURCE_ROOT = Path(os.environ.get("SIRIOPSIS_SOURCE_ROOT", "")
 # 분류 정보를 읽어 올 phyloserver siriuspasset 의 뿌리 (specimens/catalog.py).
 # `paleolab` 은 이 서버 안에서 이름이 안 풀린다 — 사내망 주소로 부른다(컨테이너에서도 닿는다).
 CATALOG_URL = os.environ.get("SIRIOPSIS_CATALOG_URL", "") or "http://172.16.116.98/siriuspasset/"
+# 화면의 링크는 사람의 PC 에서 열린다 — 거기서는 `paleolab` 이 풀린다
+CATALOG_LINK_URL = os.environ.get("SIRIOPSIS_CATALOG_LINK_URL", "") or "http://paleolab/siriuspasset/"
+
+# 컷 축소본 캐시 (specimens/thumbs.py). 원본은 NAS 의 20 MP JPEG 라 화면마다 줄여 보낸다.
+# 지워도 된다 — 다시 만든다. 운영은 `/data/Siriopsis/thumbcache`(DATA_ROOT 아래)
+THUMB_CACHE = Path(os.environ.get("SIRIOPSIS_THUMB_CACHE", "") or DATA_ROOT / "thumbcache")
 
 # --- 안전망 상태 (/healthz 가 읽는다) -----------------------------------------
 
