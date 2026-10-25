@@ -1,0 +1,54 @@
+# Siriopsis 운영 — **/srv/Siriopsis/docker-compose.yml 로 복사해 쓴다** (Cropobite deploy/srv/docker-compose.yml 에서 왔다).
+#
+#   cd /srv/Siriopsis && docker compose up -d web
+#
+# 이 파일은 **빌드하지 않는다.** 이미지는 저장소에서 굽는다(deploy/Dockerfile).
+# 판은 `.env` 의 `IMAGE_TAG` 에 있다. `:?` 는 값이 없으면 멈추라는 뜻이다 — 조용히 latest 로 흐르면 무엇이 도는지 모른다.
+#
+# 컨테이너 안팎의 경로를 같게 두었다 — 테이블의 경로가 SOURCE_ROOT 기준이고, 축소본 캐시 열쇠가 원본 경로라서
+# 호스트와 컨테이너가 같은 캐시를 쓴다 (`specimens/thumbs.py`).
+
+# 프로젝트 이름을 박아 둔다 — 안 적으면 /srv/Siriopsis 에서 소문자로 깎여 뽑힌다 (ForGIA 048)
+name: siriopsis
+
+x-common: &common
+  # root 로 돌면 Siriopsis.db 소유자가 바뀐다. 1000 은 paleoadmin
+  user: "1000:1000"
+  env_file: [.env]
+  environment:
+    TZ: Asia/Seoul
+  volumes:
+    # DB 는 **디렉토리째** — WAL 의 -wal·-shm 형제를 호스트와 같이 본다
+    - /srv/Siriopsis/db:/srv/Siriopsis/db
+    # NAS 원본은 **읽기 전용** — 고치지도 옮기지도 않는다 (CLAUDE.md §자료)
+    - "/nfs/temp-share/Sirius Passet Catalog:/nfs/temp-share/Sirius Passet Catalog:ro"
+    # 축소본 캐시는 루트 SSD 가 아니라 8 TB 하드에 (.guides/web/operations.md §6)
+    - /data/Siriopsis/thumbcache:/data/Siriopsis/thumbcache
+
+services:
+  web:
+    <<: *common
+    image: koprifossillab/siriopsis:${IMAGE_TAG:?IMAGE_TAG 를 .env 에 넣을 것}
+    ports:
+      # 루프백에만 붙인다. 바깥으로 나가는 문은 nginx 하나뿐이다 (/Siriopsis/ → 8100)
+      - "127.0.0.1:8100:9090"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # 반입 같은 일회성 명령은 이 문으로 — 뷰어와 같은 이미지·같은 마운트다.
+  #
+  #   docker compose run --rm manage scan_light_stacks --under "SP-2016 샘플별/6D 외"
+  #   docker compose run --rm manage scan_light_series
+  #   docker compose run --rm manage import_catalog
+  #
+  # 호스트 venv 로 운영 DB 를 열지 않는다 (.guides/web/data-safety.md §14).
+  manage:
+    <<: *common
+    image: koprifossillab/siriopsis:${IMAGE_TAG:?IMAGE_TAG 를 .env 에 넣을 것}
+    profiles: ["manual"]          # `up` 에 딸려 뜨지 않게
+    working_dir: /app/web
+    entrypoint: ["python", "manage.py"]
