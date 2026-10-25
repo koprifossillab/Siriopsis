@@ -13,6 +13,7 @@
 
 | 글 | 무엇 |
 |---|---|
+| [20261025_wetherilli_008](20261025_wetherilli_008_regroup_and_backup.md) | 묶음 고치기(가르기·합치기·지우기·컷 숨기기, 반입이 덮지 않는다)와 백업(시간별·NAS·`/healthz` 깃발) |
 | [20261025_wetherilli_007](20261025_wetherilli_007_paleolab_route.md) | paleolab 에 길 `v0.1.0` — compose(8100, NAS 읽기 전용)·nginx 조각·install.sh, gunicorn 실 넷 |
 | [20261025_wetherilli_006](20261025_wetherilli_006_diaruga_look.md) | DiaRUGA 모양으로 — 연도·번호(NAS 열 개 폴더) 묶음 목록, 시야 화면 구성, 로고·대기 화면·설정·판 이력·바닥글 |
 | [20261025_wetherilli_005](20261025_wetherilli_005_viewer.md) | 뷰어 첫 판 — 목록·슬랩·더미 화면, PTM 빛 방향 판, 컷 서빙, 저해상도·고해상도(잰 값) |

@@ -11,3 +11,4 @@
 | — | 2026-10-25 | 뷰어 첫 판 — 목록·슬랩·더미 화면, PTM 빛 방향 판, `/frame/<id>.jpg` 축소본, 저해상도·고해상도 · 시험 33 ([wetherilli 005](devlog/20261025_wetherilli_005_viewer.md)) |
 | — | 2026-10-25 | DiaRUGA 모양 — 연도·번호 묶음 목록, 시야 화면 구성, 로고·대기 화면·설정(판 이력·출처·만든이) · 시험 37 ([wetherilli 006](devlog/20261025_wetherilli_006_diaruga_look.md)) |
 | v0.1.0 | 2026-10-25 | 첫 판 — http://paleolab/Siriopsis/ . compose(127.0.0.1:8100, NAS 읽기 전용)·nginx 조각·`install.sh`·첫 화면 카드 ([wetherilli 007](devlog/20261025_wetherilli_007_paleolab_route.md)) |
+| — | 2026-10-25 | 묶음 고치기 — 가르기·합치기·지우기(숨김)·컷 숨기기, 반입이 손댄 묶음을 덮지 않는다 · 백업(시간별 :50 · NAS 05:40 · `/healthz` 깃발) · CSRF · 시험 63 ([wetherilli 008](devlog/20261025_wetherilli_008_regroup_and_backup.md)) |

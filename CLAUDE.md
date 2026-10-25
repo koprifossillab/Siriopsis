@@ -79,7 +79,8 @@ paleoadmin 요청(`temp/`)·사람이 넘겨줄 자료를 여기에 둔다. 만�
 - 목록 엑셀(`SP-*_Catalog*.xlsx`) — 옛 사본. **분류 정보는 phyloserver 에서 읽는다**(아래)
 - `@eaDir`·`Thumbs.db`·`*@SynoEAStream` 은 NAS 가 만든 것 — 읽지 않는다
 
-**묶음은 앞으로 사람이 고친다**(가르기·합치기·삭제 — DiaRUGA regroup, 004). 그 기능이 들어오면 **반입은 사람이 손댄 묶음을 다시 만들지 않는다.**
+**묶음은 사람이 고친다**(가르기·합치기·지우기·컷 숨기기 — `specimens/regroup.py`, 008). **반입은 사람이 손댄 묶음(`edited_at`)을 다시 만들지 않는다** —
+지우기는 숨기기다(행을 지우면 반입이 도로 만든다). 그래서 **사람이 고친 것은 DB 에만 있다** — 백업은 `ops/backup_db.py`(시간별·NAS, compose `backup` 문), 깃발과 나이를 `/healthz` 가 본다.
 
 **분류 정보의 원천은 phyloserver `siriuspasset`**(`http://paleolab/siriuspasset/specimen_list/`, 연구실이 고쳐 가는 목록).
 JSON API 가 없어 `import_catalog` 가 목록 화면의 표를 읽는다(`specimens/catalog.py`) — 읽기만, 테이블에 있는 슬랩만.
