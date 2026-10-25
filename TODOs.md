@@ -30,6 +30,10 @@
 6. **counterpart 짝 슬랩** (사용자 2026-10-25) — 같은 엑셀에 counterpart 가 적힌 표본은 짝이 맞는 반대편 슬랩이 DB 에 같이 있다.
    한 표본을 고르면 반대쪽 표본의 자료도 함께 모아 보거나, 서로 건너가는 링크를 둔다. 실마리: `SP-2016-64&65(dorsal)` 처럼 두 슬랩을 한 장에 찍은 전경 11 장
    (지금은 앞 번호에만 붙는다 — 짝을 알면 양쪽에 보인다)
+8. **phyloserver `siriuspasset` 자료 통째로 받기** (사용자 2026-10-25 — 「다 털어와도 된다. 우리 뷰어가 그 DB 기능을 완전히 대체할 수도 있다」)
+   - 요청서: NAS `temp/20261025_request_phyloserver_json_export.md` — ① `export_siriuspasset`(모든 모델·이력·사진·EPMA 파일 → NAS `phyloserver-export/<날짜>/`)
+     ② 넘어가는 동안의 `GET /siriuspasset/export.json`. 사용자가 phyloserver 쪽에서 만든다
+   - 받으면: 무엇이 있는지 조사(devlog) → Siriopsis 로 무엇을 옮길지(사진 메타·EPMA·이력) 정한다. `import_catalog` 는 export.json 을 먼저 읽는다(catalog 세션이 짜 둔다)
 7. **슬랩 화면 다시 짜기** (사용자 2026-10-25 — 「지금은 묶음 여러 개가 난잡하게 뜬다」) — 됨 (wetherilli 009)
    - **왼쪽**: 슬랩의 대표 이미지(dorsal 전경), 그 **아래 상자에 슬랩의 속성**(층준·phyloserver 링크·표본 목록·분류군 …)
    - **오른쪽**: 더미마다 **카드 한 줄**의 목록 — 섬네일·촬영일·종류·처리·컷 수 등
@@ -55,7 +59,8 @@
 
 ## 묶음 고치기 (008 다음)
 
-- 백업 cron 이 깔렸는지 — 다음 날 `/healthz` 의 `backup`(HANDOFF §0)
+- 백업 cron 은 깔렸다(21:51). v0.3.0 에서 cron 조각을 다시 깔아야 한다 — timeout · 시간별/NAS 문 가르기(paleoadmin 검토)
+- `backup.log` 정리 — 시간당 세 줄, 1 년에 2 MB 남짓이라 급하지 않다(paleoadmin 검토)
 - 더미의 표본 바꾸기(PTM 21 벌, 사람의 답 다음) — 고친 표본도 `edited_at` 으로 반입이 덮지 않게
 - 누가 고쳤는지 — 로그인이 생기면 `EditLog` 에 사람을
 - 되살리기 연습을 가끔(data-safety §11) — 사본에서 빈 DB 를 세워 한 가지 일을 해 본다

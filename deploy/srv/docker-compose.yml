@@ -56,7 +56,7 @@ services:
     entrypoint: ["python", "manage.py"]
 
   # DB 사본 (wetherilli 008, `ops/backup_db.py`). 묶음 고치기부터 DB 에 반입으로 다시 만들 수 없는 것이 생겼다.
-  # cron(/etc/cron.d/Siriopsis)이 부른다 — 시간별 `--keep 24`, 하루 한 번 `--offsite …`. 배포 전에는 손으로:
+  # cron(/etc/cron.d/Siriopsis)이 부른다 — 시간별 `--keep 24`. 배포 전에는 손으로:
   #
   #   docker compose run --rm -T backup --note pre-v0.2.0 --flat --out /srv/Siriopsis/backup/pre_deploy --keep 20
   #
@@ -71,6 +71,20 @@ services:
     volumes:
       - /srv/Siriopsis/db:/srv/Siriopsis/db
       - /srv/Siriopsis/backup:/srv/Siriopsis/backup
-      # 일별 오프사이트 — NAS 는 누구나 읽는다. DB 에 로그인·비밀이 없어 그대로 보낸다(backup_db.py 머리말)
-      - /nfs/temp-share/Siriopsis/backup:/nfs/temp-share/Siriopsis/backup
     entrypoint: ["python", "/app/ops/backup_db.py"]
+
+  # 하루 한 번 NAS 로 (`--offsite`). **시간별 문과 가른다** — NAS 는 hard 마운트라 멈추면 붙인 쪽이 걸린다.
+  # 시간별 백업이 NAS 를 붙이고 있으면 NAS 가 멈춘 날 시간별까지 매시 하나씩 걸려 쌓인다(paleoadmin 검토 2026-10-25).
+  # 살아 있는 DB 는 붙이지 않는다 — 검증된 시간별 사본만 옮긴다(data-safety §4).
+  # NAS 의 사본은 0640(paleoadmin) — 우리 파일의 권한 규칙(data-safety §7)이다. DB 에 로그인·비밀이 없어 내용은 그대로 보낸다
+  offsite:
+    image: koprifossillab/siriopsis:${IMAGE_TAG:?IMAGE_TAG 를 .env 에 넣을 것}
+    user: "1000:1000"
+    env_file: [.env]
+    environment:
+      TZ: Asia/Seoul
+    profiles: ["manual"]
+    volumes:
+      - /srv/Siriopsis/backup:/srv/Siriopsis/backup
+      - /nfs/temp-share/Siriopsis/backup:/nfs/temp-share/Siriopsis/backup
+    entrypoint: ["python", "/app/ops/backup_db.py", "--offsite", "/nfs/temp-share/Siriopsis/backup"]

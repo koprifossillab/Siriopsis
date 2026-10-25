@@ -2,7 +2,9 @@
 # 시각은 형제와 비꼈다 (.guides/web/operations.md §9): 시간별 :50 — DiaRUGA :20 · ForGIA :25 · GSM :40 뒤.
 # NAS 로는 05:40 — DiaRUGA 04:40 · ForGIA 05:10 동기화 뒤, 04:50 시간별 사본을 보낸다(2 시간 넘게 묵은 것은 안 보낸다).
 # 사용자는 paleoadmin(1000) — 컨테이너와 같은 사용자. 실패는 깃발(BACKUP_FAIL.*)로 /healthz 가 알린다.
+# timeout — 무엇이 걸려도(NAS hard 마운트·docker) 한 회차가 다음 회차와 겹쳐 쌓이지 않게. 시간별은 NAS 를 붙이지 않는다(offsite 문만)
+# (paleoadmin 검토 2026-10-25. DiaRUGA·ForGIA·GSM 과 같은 꼴)
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-50 * * * * paleoadmin cd /srv/Siriopsis && docker compose run --rm -T backup --keep 24 >> /srv/Siriopsis/backup/backup.log 2>&1
-40 5 * * * paleoadmin cd /srv/Siriopsis && docker compose run --rm -T backup --offsite /nfs/temp-share/Siriopsis/backup --keep-offsite 60 >> /srv/Siriopsis/backup/backup.log 2>&1
+50 * * * * paleoadmin cd /srv/Siriopsis && timeout 1800 docker compose run --rm -T backup --keep 24 >> /srv/Siriopsis/backup/backup.log 2>&1
+40 5 * * * paleoadmin cd /srv/Siriopsis && timeout 1800 docker compose run --rm -T offsite --keep-offsite 60 >> /srv/Siriopsis/backup/backup.log 2>&1
