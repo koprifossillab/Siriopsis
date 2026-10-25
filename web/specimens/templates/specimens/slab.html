@@ -74,6 +74,7 @@
         <dt>층준</dt><dd>{% if slab.horizon %}{{ slab.horizon }}{% else %}<span class="dim">미기록</span>{% endif %}</dd>
         <dt>표본</dt><dd>{% if specimens %}<ul class="sps">{% for sp in specimens %}<li><b>{{ sp.letter }}</b>{% if sp.taxon_name %}<i>{{ sp.taxon_name }}</i>{% endif %}{% if sp.phylum %} <span class="dim">{{ sp.phylum }}</span>{% endif %}</li>{% endfor %}</ul>{% else %}<span class="dim">없음</span>{% endif %}</dd>
         <dt>더미</dt><dd>{{ facts.n_stacks }}{% if facts.n_ptm %} <span class="dim">(PTM {{ facts.n_ptm }})</span>{% endif %} · 컷 {{ facts.n_frames }}{% if facts.copies %} <span class="dim">· 사본 {{ facts.copies }}</span>{% endif %}</dd>
+        {% if counterparts %}<dt>짝</dt><dd>{% for g in counterparts %}{% if g.slab %}<a href="{% url 'slab' g.other %}">{{ g.other }}</a>{% else %}{{ g.other }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %} <span class="dim">counterpart</span></dd>{% endif %}
         {% if facts.first %}<dt>촬영</dt><dd>{{ facts.first|date:"Y-m-d" }}{% if facts.last|date:"Ymd" != facts.first|date:"Ymd" %} – {{ facts.last|date:"Y-m-d" }}{% endif %}</dd>{% endif %}
         <dt>목록</dt><dd>{% if slab.catalog_id %}<a href="{{ catalog }}slab_detail/{{ slab.catalog_id }}/" target="_blank" rel="noopener">phyloserver 슬랩 정보 →</a>{% if slab.catalog_synced_at %}<br><span class="dim">{{ slab.catalog_synced_at|date:"Y-m-d" }} 에 읽음</span>{% endif %}{% else %}<span class="dim">phyloserver 목록에 없음</span>{% endif %}</dd>
       </dl>
@@ -81,6 +82,7 @@
   </aside>
 
   <div>
+    {% include "specimens/_counterpart.html" %}
     {% for g in groups %}
     <section class="sp">
       <h3>{{ g.specimen.specimen_no }}
