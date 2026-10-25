@@ -1,64 +1,114 @@
 {% extends "core/base.html" %}
+{% load specimens_extras %}
 {% block title %}{{ slab.slab_no }} — {% endblock %}
 {% comment %}
-  슬랩 화면 (wetherilli 005) — DiaRUGA 슬라이드 화면(`dataset.html`)의 자리: 머리(이름·꼬리표·링크) · 한 줄 요약 · 사진 격자.
-  격자는 **표본마다** 끊는다 — 「한 표본을 여러 방법으로」 보는 자리라 표본이 단위다. 표본 글자 없는 더미는 맨 뒤에.
+  슬랩 화면 (wetherilli 005 → 009 에서 다시 짰다, 사용자 2026-10-25 「묶음 여러 개가 난잡하게 뜬다」).
+  [왼쪽: 슬랩의 대표 이미지(전경 dorsal) + 그 아래 속성 상자] [오른쪽: 더미마다 카드 한 줄 — 섬네일·촬영일·종류·처리·컷 수].
+  카드는 **표본마다** 끊는다 — 「한 표본을 여러 방법으로」 보는 자리라 표본이 단위다. 표본 글자 없는 더미·지운 더미는 뒤에.
 {% endcomment %}
 {% block subtitle %}<a href="{% url 'home' %}?y={{ slab.year }}">SP-{{ slab.year }}</a> / <b>{{ slab.slab_no }}</b>{% endblock %}
 {% block mainclass %} class="wide"{% endblock %}
 {% block head %}
 <style>
-  .pagehead .links { margin-left: auto; display: flex; gap: 14px; font-size: 13px; }
-  section.sp { margin: 18px 0 8px; }
-  section.sp h3 { margin: 0 0 4px; font-size: 15px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .slabv { display: grid; grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .slabv { grid-template-columns: 1fr; } }
+  .slabv .lcol { position: sticky; top: 64px; }
+  @media (max-width: 900px) { .slabv .lcol { position: static; } }
+  .hero { display: block; background: #000; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .hero img { display: block; width: 100%; max-height: 62vh; object-fit: contain; }
+  .hero .none { display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; color: var(--dim); font-size: 13px; }
+  .herocap { font-size: 12px; color: var(--dim); margin: 5px 2px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  .herothumbs { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .herothumbs img { width: 64px; height: 48px; object-fit: cover; border-radius: 5px; border: 1px solid var(--line); }
+  .props { margin-top: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 10px 13px; font-size: 13px; }
+  .props h3 { margin: 0 0 8px; font-size: 13px; }
+  .props dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+  .props dt { color: var(--dim); }
+  .props dd { margin: 0; overflow-wrap: anywhere; }
+  .props .sps { list-style: none; margin: 0; padding: 0; }
+  .props .sps li { padding: 2px 0; }
+  .props .sps i { margin-left: 4px; }
+  section.sp { margin: 0 0 18px; }
+  section.sp h3 { margin: 0 0 6px; font-size: 14.5px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
   section.sp h3 .taxon { font-style: italic; font-weight: 500; }
-  section.sp .remarks { color: var(--dim); font-size: 12.5px; margin: 0 0 8px; max-width: 70rem; }
-  section.sp .grid { margin-top: 8px; }
-  .hiddentile { padding: 0 0 8px; text-align: center; }
-  .hiddentile .tile { border: 0; border-radius: 0; opacity: .6; }
-  .hiddentile .btn { font-size: 12px; }
+  section.sp .remarks { color: var(--dim); font-size: 12.5px; margin: 0 0 6px; }
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .srow { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 12px; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 9px; overflow: hidden; color: inherit; }
+  .srow:hover { border-color: var(--accent); text-decoration: none; }
+  .srow img, .srow .noimg { display: block; width: 168px; height: 112px; object-fit: cover; background: #000; }
+  .srow .body { display: flex; flex-direction: column; gap: 3px; padding: 8px 12px 8px 0; font-size: 12.5px; min-width: 0; }
+  .srow .t { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+  .srow .t b { font-size: 14px; }
+  .srow .m { color: var(--fg); }
+  .srow .m b { font-weight: 600; }
+  .srow .f { color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .srow.gone { opacity: .6; }
+  .gonewrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .gonewrap .btn { font-size: 12px; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="pagehead">
   <h2>{{ slab.slab_no }}</h2>
   {% if slab.horizon %}<span class="tag">층준 {{ slab.horizon }}</span>{% endif %}
-  <span class="links">
-    {% if slab.catalog_id %}<a href="{{ catalog }}slab_detail/{{ slab.catalog_id }}/" target="_blank" rel="noopener">phyloserver 슬랩 정보 →</a>{% else %}<span class="dim">phyloserver 목록에 없음</span>{% endif %}
-  </span>
 </div>
-<p class="meta-line mono">표본 {{ groups|length }}{% if loose %} · 표본 글자 없는 더미 {{ loose|length }}{% endif %}</p>
 
-{% if overview %}
-<section class="sp">
-  <h3>슬랩 전경 <span class="dim" style="font-size:12.5px;font-weight:400">슬랩 자체를 찍은 사진 (dorsal)</span></h3>
-  <div class="grid">{% for st in overview %}{% include "specimens/_stackcard.html" %}{% endfor %}</div>
-</section>
-{% endif %}
-{% for g in groups %}
-<section class="sp">
-  <h3>{{ g.specimen.specimen_no }}
-    {% if g.specimen.taxon_name %}<span class="taxon">{{ g.specimen.taxon_name }}</span>{% endif %}
-    {% if g.specimen.phylum %}<span class="dim">{{ g.specimen.phylum }}</span>{% endif %}
-    {% if g.specimen.catalog_id %}<a href="{{ catalog }}specimen_detail/{{ g.specimen.catalog_id }}/" target="_blank" rel="noopener" style="font-size:12px">phyloserver →</a>{% endif %}
-  </h3>
-  {% if g.specimen.remarks %}<p class="remarks">{{ g.specimen.remarks }}</p>{% endif %}
-  <div class="grid">{% for st in g.stacks %}{% include "specimens/_stackcard.html" %}{% endfor %}</div>
-</section>
-{% endfor %}
-{% if loose %}
-<section class="sp">
-  <h3>표본 글자 없음 <span class="dim" style="font-size:12.5px;font-weight:400">이름에 표본 글자가 없는 더미 — 어느 표본인지는 사람이 정한다</span></h3>
-  <div class="grid">{% for st in loose %}{% include "specimens/_stackcard.html" %}{% endfor %}</div>
-</section>
-{% endif %}
-{% if hidden %}
-<section class="sp">
-  <h3>지운 묶음 {{ hidden|length }} <span class="dim" style="font-size:12.5px;font-weight:400">묶음 고치기에서 지웠거나 다른 묶음에 합친 것 — 행이 남아 반입이 도로 만들지 않는다</span></h3>
-  <div class="grid">{% for st in hidden %}
-    <div class="tile hiddentile">{% include "specimens/_stackcard.html" %}
-      <form method="post" action="{% url 'restore_stack' st.id %}">{% csrf_token %}<button type="submit" class="btn">되살리기</button></form>
-    </div>{% endfor %}</div>
-</section>
-{% endif %}
+<div class="slabv">
+  <aside class="lcol">
+    {% if rep and rep.first_frame %}
+    <a class="hero" href="{% url 'stack' rep.id %}" title="{{ rep.label }} — 크게 보기"><img src="{% frame_url rep.first_frame 1600 %}" alt="{{ slab.slab_no }}"></a>
+    <p class="herocap">{% if rep.kind == 'slab' %}<span>슬랩 전경</span>{% else %}<span>전경 사진이 없다 — 첫 빛 묶음 {{ rep.label }}</span>{% endif %}
+      {% if rep.captured_at %}<span>{{ rep.captured_at|date:"Y-m-d" }}</span>{% endif %}</p>
+    {% else %}
+    <div class="hero"><span class="none">사진이 없다</span></div>
+    {% endif %}
+    {% if overview|length > 1 %}
+    <div class="herothumbs">{% for st in overview %}{% if st.id != rep.id and st.first_frame %}<a href="{% url 'stack' st.id %}" title="{{ st.label }} · {{ st.n_frames }}장"><img loading="lazy" src="{% frame_url st.first_frame 200 %}" alt=""></a>{% endif %}{% endfor %}</div>
+    {% endif %}
+
+    <div class="props">
+      <h3>슬랩</h3>
+      <dl>
+        <dt>번호</dt><dd><b>{{ slab.slab_no }}</b> <span class="dim">· {{ slab.year }} 채집</span></dd>
+        <dt>층준</dt><dd>{% if slab.horizon %}{{ slab.horizon }}{% else %}<span class="dim">미기록</span>{% endif %}</dd>
+        <dt>표본</dt><dd>{% if specimens %}<ul class="sps">{% for sp in specimens %}<li><b>{{ sp.letter }}</b>{% if sp.taxon_name %}<i>{{ sp.taxon_name }}</i>{% endif %}{% if sp.phylum %} <span class="dim">{{ sp.phylum }}</span>{% endif %}</li>{% endfor %}</ul>{% else %}<span class="dim">없음</span>{% endif %}</dd>
+        <dt>더미</dt><dd>{{ facts.n_stacks }}{% if facts.n_ptm %} <span class="dim">(PTM {{ facts.n_ptm }})</span>{% endif %} · 컷 {{ facts.n_frames }}{% if facts.copies %} <span class="dim">· 사본 {{ facts.copies }}</span>{% endif %}</dd>
+        {% if facts.first %}<dt>촬영</dt><dd>{{ facts.first|date:"Y-m-d" }}{% if facts.last|date:"Ymd" != facts.first|date:"Ymd" %} – {{ facts.last|date:"Y-m-d" }}{% endif %}</dd>{% endif %}
+        <dt>목록</dt><dd>{% if slab.catalog_id %}<a href="{{ catalog }}slab_detail/{{ slab.catalog_id }}/" target="_blank" rel="noopener">phyloserver 슬랩 정보 →</a>{% if slab.catalog_synced_at %}<br><span class="dim">{{ slab.catalog_synced_at|date:"Y-m-d" }} 에 읽음</span>{% endif %}{% else %}<span class="dim">phyloserver 목록에 없음</span>{% endif %}</dd>
+      </dl>
+    </div>
+  </aside>
+
+  <div>
+    {% for g in groups %}
+    <section class="sp">
+      <h3>{{ g.specimen.specimen_no }}
+        {% if g.specimen.taxon_name %}<span class="taxon">{{ g.specimen.taxon_name }}</span>{% endif %}
+        {% if g.specimen.phylum %}<span class="dim">{{ g.specimen.phylum }}</span>{% endif %}
+        <span class="dim" style="font-size:12px;font-weight:400">더미 {{ g.stacks|length }}</span>
+        {% if g.specimen.catalog_id %}<a href="{{ catalog }}specimen_detail/{{ g.specimen.catalog_id }}/" target="_blank" rel="noopener" style="font-size:12px">phyloserver →</a>{% endif %}
+      </h3>
+      {% if g.specimen.remarks %}<p class="remarks">{{ g.specimen.remarks }}</p>{% endif %}
+      <div class="rows">{% for st in g.stacks %}{% include "specimens/_stackrow.html" %}{% endfor %}</div>
+    </section>
+    {% endfor %}
+    {% if loose %}
+    <section class="sp">
+      <h3>표본 글자 없음 <span class="dim" style="font-size:12.5px;font-weight:400">이름에 표본 글자가 없는 더미</span></h3>
+      <div class="rows">{% for st in loose %}{% include "specimens/_stackrow.html" %}{% endfor %}</div>
+    </section>
+    {% endif %}
+    {% if not groups and not loose %}<p class="dim">빛 묶음·PTM 더미가 없다{% if overview %} — 슬랩 전경만 있다{% endif %}.</p>{% endif %}
+    {% if hidden %}
+    <section class="sp">
+      <h3>지운 묶음 {{ hidden|length }} <span class="dim" style="font-size:12.5px;font-weight:400">묶음 고치기에서 지웠거나 다른 묶음에 합친 것 — 행이 남아 반입이 도로 만들지 않는다</span></h3>
+      <div class="rows">{% for st in hidden %}
+        <div class="gonewrap">{% include "specimens/_stackrow.html" %}
+          <form method="post" action="{% url 'restore_stack' st.id %}">{% csrf_token %}<button type="submit" class="btn">되살리기</button></form>
+        </div>{% endfor %}</div>
+    </section>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

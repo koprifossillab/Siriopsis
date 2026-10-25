@@ -79,7 +79,7 @@ def home(request):
 
 
 def slab(request, slab_no):
-    """슬랩 하나 — 표본마다 더미를 {처리 × 배율} 칸으로. 표본 글자 없는 더미는 따로, 지운 더미는 맨 뒤에(되살리기)."""
+    """슬랩 하나 (사용자 2026-10-25): 왼쪽에 대표 이미지(전경)와 속성 상자, 오른쪽에 더미 카드 줄 — 표본마다 끊고, 글자 없는 것·지운 것은 뒤에."""
     s = get_object_or_404(Slab, slab_no=slab_no)
     stacks = list(s.stacks.filter(copy_of__isnull=True, hidden=False).select_related("specimen")
                   .order_by("kind", "preparation", "view", "label", "piece"))
@@ -97,11 +97,22 @@ def slab(request, slab_no):
         if mine:
             groups.append({"specimen": sp, "stacks": mine})
     loose = [st for st in stacks if st.specimen_id is None]
+    # 왼쪽 칸 (사용자 2026-10-25): 대표 이미지는 정본 전경의 첫 컷, 없으면 첫 빛 묶음. 아래 상자에 슬랩의 속성
+    rep = next((st for st in overview if not st.copy_of_id), None) or next(iter(stacks), None)
+    dates = [st.captured_at for st in stacks + overview if st.captured_at]
+    facts = {
+        "n_stacks": len(stacks), "n_frames": sum(st.n_frames for st in stacks),
+        "n_ptm": sum(st.kind == Stack.Kind.PTM for st in stacks),
+        "copies": s.stacks.filter(copy_of__isnull=False, hidden=False).count(),
+        "first": min(dates) if dates else None, "last": max(dates) if dates else None,
+        "taxa": sorted({sp.taxon_name for sp in s.specimens.all() if sp.taxon_name}),
+    }
     first.update(_hidden_first(hidden))
     for st in hidden:
         st.first_frame = first.get(st.id)
     return render(request, "specimens/slab.html", {
         "slab": s, "groups": groups, "loose": loose, "hidden": hidden, "overview": overview,
+        "rep": rep, "facts": facts, "specimens": list(s.specimens.all()),
         "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
     })
 

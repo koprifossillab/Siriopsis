@@ -1,0 +1,10 @@
+{% load specimens_extras %}
+<a class="srow{% if st.hidden %} gone{% endif %}" href="{% url 'stack' st.id %}">
+  {% if st.first_frame %}<img loading="lazy" src="{% frame_url st.first_frame 400 %}" alt="">{% else %}<span class="noimg"></span>{% endif %}
+  <span class="body">
+    <span class="t"><b>{{ st.label }}</b>{% if st.piece %} <span class="dim">· 조각 {{ st.piece }}</span>{% endif %}
+      <span class="tag {{ st.kind }}">{{ st.get_kind_display }}</span>{% if st.preparation != 'none' %}<span class="tag prep">{{ st.get_preparation_display }}</span>{% endif %}{% if st.view == 'zoom' %}<span class="tag">확대</span>{% endif %}{% if st.other_copies %}<span class="tag copy">사본 {{ st.other_copies }}</span>{% endif %}{% if st.copy_of_id %}<span class="tag copy">사본</span>{% endif %}{% if st.is_leftover %}<span class="tag prep">새로 찾은 컷</span>{% elif st.edited_at %}<span class="tag">고침</span>{% endif %}</span>
+    <span class="m">{% if st.captured_at %}<b>{{ st.captured_at|date:"Y-m-d" }}</b> 촬영 · {% endif %}{{ st.n_frames }}컷{% if st.width %} · {{ st.width }} × {{ st.height }}{% endif %}{% if st.camera %} · {{ st.camera }}{% endif %}</span>
+    <span class="f mono">{{ st.source_dir }}</span>
+  </span>
+</a>
