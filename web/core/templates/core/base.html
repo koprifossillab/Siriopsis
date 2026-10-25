@@ -123,8 +123,6 @@
   .btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
   input[type=search] { min-width: 18rem; }
 
-  .foot { padding: 14px 18px 18px; border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; text-align: center; }
-  .credit span + span::before { content: " · "; }
   .envwm { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center;
            pointer-events: none; overflow: hidden; }
   .envwm span { transform: rotate(-30deg); font-size: min(15vmin, 180px); font-weight: 800; line-height: 1;
@@ -210,11 +208,6 @@
   </button>
 </header>
 <main{% block mainclass %}{% endblock %}>{% block content %}{% endblock %}</main>
-{% comment %}
-  바닥글 — 판·자료 출처·만든이·라이선스 (.guides/branding.md §2·§4, 사용자 2026-10-25).
-  더미 화면은 사진이 창 높이를 다 쓰므로 바닥글을 비우고 오른쪽 칸에 같은 줄을 둔다(`credit` 블록).
-{% endcomment %}
-{% block footer %}<footer class="foot">{% include "core/_credit.html" %}</footer>{% endblock %}
 {% if env_label %}<div class="envwm" aria-hidden="true"><span>{{ env_label }}</span></div>{% endif %}
 </body>
 </html>

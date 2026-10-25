@@ -23,7 +23,6 @@
   {% if next_id %}<a href="{% url 'stack' next_id %}" id="go-next" title="이 슬랩의 뒤 더미 (PageDown)">뒤 더미 →</a>{% endif %}
 {% endblock %}
 {% block mainclass %} class="wide"{% endblock %}
-{% block footer %}{% endblock %}
 {% block head %}
 <style>
   main.wide { padding-top: 12px; }
@@ -237,7 +236,6 @@
       </ul>
     </div>
     {% endif %}
-    <p class="dim" style="font-size:11px;margin:10px 2px 0;line-height:1.6">{% include "core/_credit.html" %}</p>
   </aside>
 </div>
 
@@ -398,7 +396,11 @@
     var top = view.getBoundingClientRect().top;
     var below = document.querySelector('.shotcap').getBoundingClientRect().height +
                 document.querySelector('.striprow').getBoundingClientRect().height;
-    view.style.height = Math.max(320, window.innerHeight - top - below - 18) + 'px';
+    var h = Math.max(320, window.innerHeight - top - below - 20);
+    view.style.height = h + 'px';
+    // 여백이 겹치는 자리를 다 셀 수는 없다 — 재서 넘친 만큼 물린다(DiaRUGA `_atlasview.html` 과 같다)
+    var over = document.documentElement.scrollHeight - window.innerHeight;
+    if (over > 0) view.style.height = Math.max(320, h - over) + 'px';
   }
   function apply() {
     canvas.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + k + ')';
