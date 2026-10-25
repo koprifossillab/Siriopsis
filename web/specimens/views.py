@@ -98,7 +98,9 @@ def slab(request, slab_no):
             groups.append({"specimen": sp, "stacks": mine})
     loose = [st for st in stacks if st.specimen_id is None]
     # 왼쪽 칸 (사용자 2026-10-25): 대표 이미지는 정본 전경의 첫 컷, 없으면 첫 빛 묶음. 아래 상자에 슬랩의 속성
-    rep = next((st for st in overview if not st.copy_of_id), None) or next(iter(stacks), None)
+    # vent(뜻을 아직 모른다)는 dorsal 이 없을 때만 대표가 된다
+    rep = (next((st for st in overview if not st.copy_of_id and "(vent)" not in st.label), None)
+           or next((st for st in overview if not st.copy_of_id), None) or next(iter(stacks), None))
     dates = [st.captured_at for st in stacks + overview if st.captured_at]
     facts = {
         "n_stacks": len(stacks), "n_frames": sum(st.n_frames for st in stacks),

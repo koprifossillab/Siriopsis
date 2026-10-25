@@ -34,7 +34,9 @@ class ParseTest(SafeTestCase):
         self.assertEqual(parse("SP-2016-816(dorsal(.JPG")[1], "SP-2016-0816")
         self.assertEqual(parse("724(dorsal).JPG", "SP-2017(721~730)")[1], "SP-2017-0724")
         self.assertIsNone(parse("724(dorsal).JPG", "SP-2017(731~740)"))                  # 구간 밖이면 모른다
-        for bad in ("JC-SPIDER-8(dorsal).JPG", "SP-2016-47A-1.JPG", "SP-2016-47(vent).JPG", "SP-2016-47A-1(ethanol).JPG"):
+        self.assertEqual(parse("SP-2016-47 (vent).JPG")[:2], ("SP-2016-47(vent)", "SP-2016-0047"))   # dorsal 과 다른 묶음
+        self.assertEqual(parse("731(vent).JPG", "SP-2017(731~740)")[0], "SP-2017-731(vent)")
+        for bad in ("JC-SPIDER-8(dorsal).JPG", "SP-2016-47A-1.JPG", "SP-2016-47vent).JPG", "SP-2016-47A-1(ethanol).JPG"):
             self.assertIsNone(parse(bad), bad)
         # 차례: 번호 없는 것 → 번호 순 → 변형
         keys = sorted(["SP-2018-215 (dorsal) (2).JPG", "SP-2018-215 (dorsal-DSLR).JPG", "SP-2018-215 (dorsal) (1).JPG"],
@@ -95,9 +97,17 @@ class ScanSlabViewsTest(SafeTestCase):
         put(self.root, MAIN, "SP-2016-64(dorsal).JPG", "SP-2016-64A-1.JPG", "SP-2016-64A-2.JPG")
         scan(root=self.root)
         scan_series(root=self.root)
+        put(self.root, MAIN, "SP-2016-64(vent).JPG")
+        scan(root=self.root)
         r = self.client.get(reverse("slab", args=["SP-2016-0064"]))
+        self.assertEqual(r.context["rep"].label, "SP-2016-64")                  # 대표는 dorsal
+        # vent 가 차례상 앞에 와도(dorsal 이 흰 코팅 폴더에만 있을 때) 대표는 dorsal
+        put(self.root, "SP-2016 샘플별/SP-2016(71~80)", "SP-2016-77(vent).JPG", "SP-2016-77A-1.JPG", "SP-2016-77A-2.JPG")
+        put(self.root, "SP-2016 샘플별/SP-2016-white coated", "SP-2016-77(dorsal).JPG")
+        scan(root=self.root)
+        self.assertEqual(self.client.get(reverse("slab", args=["SP-2016-0077"])).context["rep"].label, "SP-2016-77")
         self.assertContains(r, "슬랩 전경")
         self.assertEqual([g["specimen"].letter for g in r.context["groups"]], ["A"])
-        self.assertEqual(len(r.context["overview"]), 1)
+        self.assertEqual(len(r.context["overview"]), 2)
         self.assertEqual(r.context["loose"], [])                               # 「표본 글자 없음」 칸에 섞이지 않는다
-        self.assertFalse(regroup.delete_preview(Stack.objects.get(kind="slab"))["ok"])
+        self.assertFalse(regroup.delete_preview(Stack.objects.get(kind="slab", label="SP-2016-64"))["ok"])

@@ -11,6 +11,9 @@
 - `724(dorsal)` — 번호만(`SP-2017(721~730)` 폴더, 10 장). **폴더 이름의 연도·구간 안에 들 때만** 그 슬랩으로 읽는다
 - `JC-SPIDER-*`·`JC-ANO-*` 처럼 SP 가 아닌 것은 안 읽는다
 
+**`(vent)`(1,119 장)도 같은 꼴이라 함께 읽는다** — 무엇을 찍은 것인지는 아직 모른다(사용자 2026-10-25: 「뷰어에 들어와야 보고 정한다」).
+묶음 이름에 `(vent)` 를 달아 dorsal 과 가르고, 슬랩 화면의 대표 이미지는 dorsal 이 맡는다.
+
 정본과 사본은 빛 묶음과 같은 규칙으로 고른다(`lightseries._rank` — 컷 수 → 사본 표시 폴더가 아님 → 얕은 경로), 사본도 넣어 잇는다.
 **한 장짜리도 넣는다** — 빛 묶음과 달리 슬랩 전경은 대개 한 장이다. 사람이 고치는 일(`regroup`)은 빛 묶음만이라 여기는 늘 반입이 맞춘다.
 **원본은 읽기만 한다.** 몇 번을 돌려도 같다. `--under` 로 일부만 훑으면 지우지 않는다.
@@ -33,7 +36,7 @@ from .names import slab_no
 # <앞 이름 겹침?><SP-연도-번호><나머지(글자·&번호)> (dorsal…) <꼬리 번호?>.jpg — 닫는 괄호 자리의 `(` 오타(`(dorsal(`)도 받는다
 SHOT = re.compile(
     r"^(?:SP-\d{4}-\d+(?=SP-))?(?P<name>SP-(?P<year>\d{4})-(?P<num>\d+)[A-Za-z&\d]*?)-?\s*"
-    r"\((?P<view>dorsal)(?P<variant>[^)(]*)[)(]\s*(?P<tail>[-\s]*\(?\d+\)?)?\s*\.jpe?g$", re.IGNORECASE)
+    r"\((?P<view>dorsal|vent)(?P<variant>[^)(]*)[)(]\s*(?P<tail>[-\s]*\(?\d+\)?)?\s*\.jpe?g$", re.IGNORECASE)
 
 
 @dataclass
@@ -51,7 +54,7 @@ class SlabViewStats:
 
 
 # 번호만 적힌 이름과 그것을 담은 구간 폴더 `SP-2017(721~730)`
-BARE = re.compile(r"^(?P<num>\d+)(?=\s*\(dorsal)", re.IGNORECASE)
+BARE = re.compile(r"^(?P<num>\d+)(?=\s*\((?:dorsal|vent))", re.IGNORECASE)
 FOLDER = re.compile(r"^SP-(?P<year>\d{4})-?\((?P<lo>\d+)\s*[~-]\s*(?P<hi>\d+)\)$")
 
 
@@ -66,7 +69,9 @@ def parse(fname, folder=""):
     tail = re.sub(r"\D", "", m["tail"] or "")
     # 컷 차례: 꼬리 번호 없는 것 → 번호 순 → 변형(`dorsal-DSLR`)은 뒤로
     order = (1 if m["variant"].strip() else 0, int(tail) if tail else 0, fname.lower())
-    return m["name"], slab_no(m["year"], m["num"]), int(m["year"]), order
+    # vent 는 이름에 그 표시를 달아 dorsal 과 다른 묶음으로 — 같은 슬랩·같은 폴더에 둘이 함께 있다
+    name = m["name"] + ("(vent)" if m["view"].lower() == "vent" else "")
+    return name, slab_no(m["year"], m["num"]), int(m["year"]), order
 
 
 def find(root, start):
