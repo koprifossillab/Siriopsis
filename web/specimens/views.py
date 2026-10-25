@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from . import browse, regroup, scales, thumbs, workbook
+from . import browse, outlines, regroup, scales, thumbs, workbook
 from .models import Frame, Slab, Stack
 
 PER_PAGE = 48
@@ -181,8 +181,12 @@ def stack(request, pk):
 
     # 배율 (wetherilli 010) — 잰 컷과 크기가 같은 컷에만. 없으면 화면은 스케일바를 안 그리고 길이를 px 로 적는다
     scale = scales.of(st)
+    # 표본 테두리 (wetherilli 011) — 그린 컷과 크기가 같은 컷에만 얹는다
+    outline = outlines.of(st)
     payload = [{"id": f.id, "seq": f.seq, "no": f.shot_no, "name": f.path.rsplit("/", 1)[-1],
                 "w": f.width, "h": f.height, "mmpp": scale.mm_per_px if scale and scale.fits(f.width, f.height) else None,
+                "ol": bool(outline and outline.fits(f.width, f.height)),
+                "drawn": bool(outline and f.path == outline.frame_path),
                 "x": f.light_x, "y": f.light_y, "z": f.light_z,
                 "az": None if f.light_x is None else round(f.azimuth, 1),
                 "el": None if f.light_z is None else round(f.elevation, 1)} for f in frames]
@@ -191,6 +195,9 @@ def stack(request, pk):
         "prev_id": prev_id, "next_id": next_id, "siblings": siblings, "primary_id": primary.id,
         "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
         "hidden_frames": hidden_frames, "scale": scale,
+        "outline": outline, "outline_numbers": outlines.numbers(outline, st) if outline else None,
+        "outline_data": {"points": outline.points, "w": outline.width, "h": outline.height} if outline else None,
+        "drawable": not outlines._check(st),
         "scale_misfit": sum(1 for p in payload if p["mmpp"] is None) if scale and scale.mm_per_px else 0,
         # 묶음 고치기 칸 (008) — 빛 묶음만. 합칠 상대는 같은 슬랩의 빛 묶음(사본 포함)
         "editable": st.kind == Stack.Kind.SERIES and not st.hidden,
@@ -274,6 +281,20 @@ def frame_visibility(request, pk):
     except ValueError as e:
         return _bad(request, f.stack, "frame", e)
     return redirect("stack", pk=f.stack_id)
+
+
+@require_POST
+def outline(request, pk):
+    """표본 테두리 저장(`frame`·`points`)·지우기(`delete=1`) (wetherilli 011). 한 걸음 — 다시 그리거나 고칠 수 있다."""
+    st = get_object_or_404(Stack, pk=pk)
+    try:
+        if request.POST.get("delete") == "1":
+            outlines.delete(st)
+        else:
+            outlines.save(st, request.POST.get("frame", ""), request.POST.get("points", ""))
+    except ValueError as e:
+        return _bad(request, st, "outline", e)
+    return redirect("stack", pk=st.id)
 
 
 def frame_image(request, pk):

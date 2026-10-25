@@ -242,3 +242,32 @@ class Scale(models.Model):
     def fits(self, width, height):
         """이 크기의 컷에 이 배율을 쓸 수 있나."""
         return self.mm_per_px is not None and (width, height) == (self.width, self.height)
+
+
+class Outline(models.Model):
+    """표본 테두리 — 한 더미에 하나 (사용자 2026-10-25, wetherilli 011).
+
+    **좌표는 그린 컷의 원본 화소다.** 그린 컷은 Frame 이 아니라 경로와 크기로 적는다(`Scale` 과 같은 까닭 — 반입이 Frame 행을
+    다시 만든다). 크기가 같은 다른 컷에도 그대로 얹는다 — PTM 은 삼각대라 맞고, 빛 묶음은 맞춤 전이라 어긋날 수 있다(화면이 그렇게 적는다).
+    크기가 다른 컷에는 얹지 않는다. 계측값은 **서버가 다시 잰다**(`shape.py`) — 브라우저가 보낸 값을 믿지 않는다.
+
+    사람이 그린 것이라 반입으로 다시 만들 수 없다 — 그리면 더미에 `edited_at` 을 단다(반입이 덮지 않게, 008). 백업 대상이다.
+    """
+    stack = models.OneToOneField(Stack, on_delete=models.CASCADE, related_name="outline")
+    frame_path = models.CharField(max_length=500)
+    width = models.PositiveIntegerField()
+    height = models.PositiveIntegerField()
+    points = models.JSONField()                       # [[x, y], …] 원본 화소
+    area_px = models.FloatField()
+    perimeter_px = models.FloatField()
+    major_px = models.FloatField(null=True, blank=True)
+    minor_px = models.FloatField(null=True, blank=True)
+    long_px = models.FloatField(null=True, blank=True)
+    short_px = models.FloatField(null=True, blank=True)
+    drawn_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.stack_id} · {len(self.points)} 점"
+
+    def fits(self, width, height):
+        return (width, height) == (self.width, self.height)

@@ -1,7 +1,8 @@
 """`pipeline/ruler_scale.py` 가 낸 배율 CSV 를 테이블(Scale)에 넣는다 (`specimens/scales.py`, wetherilli 010).
 
     python web/manage.py import_scales scales.csv
-    docker compose run --rm -T -v "$PWD/scales.csv:/tmp/scales.csv:ro" manage import_scales /tmp/scales.csv   # 운영
+    # 운영 — 파일을 /srv/Siriopsis/backup/import/ 에 두면 manage 컨테이너에 같은 자리로(읽기만) 붙어 있다
+    docker compose run --rm -T manage import_scales /srv/Siriopsis/backup/import/<파일>.csv
 
 몇 번을 넣어도 같다. `ok` 만 값을 넣고, 믿기 어려운 것·자를 못 찾은 것은 까닭만 남긴다.
 """

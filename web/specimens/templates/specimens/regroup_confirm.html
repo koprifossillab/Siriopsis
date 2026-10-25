@@ -8,7 +8,7 @@
 {% endcomment %}
 {% block subtitle %}<a href="{% url 'home' %}">표본</a> /
   <a href="{% url 'slab' stack.slab.slab_no %}">{{ stack.slab.slab_no }}</a> /
-  <a href="{{ back_url }}">{{ stack.label }}</a> / <b>{% if action == 'split' %}가르기{% elif action == 'merge' %}합치기{% elif action == 'delete' %}지우기{% else %}고치기{% endif %}</b>{% endblock %}
+  <a href="{{ back_url }}">{{ stack.label }}</a> / <b>{% if action == 'split' %}가르기{% elif action == 'merge' %}합치기{% elif action == 'delete' %}지우기{% elif action == 'outline' %}표본 테두리{% else %}고치기{% endif %}</b>{% endblock %}
 {% block head %}
 <style>
   .piece { margin: 14px 0; }
