@@ -2,125 +2,197 @@
 {% load specimens_extras %}
 {% block title %}{{ stack.label }} — {% endblock %}
 {% comment %}
-  더미 화면 (P01 2단계, wetherilli 005). DiaRUGA 시야 화면(`group.html`·`_shots.html`)의 자리다 — 큰 그림 하나와
-  컷 줄, 줄에 올리면 미리 보고 누르면 정한다. **종류마다 다르게 건다**(사용자 2026-10-25):
-  - `series`(카탈로그 빛 묶음) — 컷 번호 줄. ←/→ 와 숫자 키
-  - `ptm` — 그 위에 **빛 방향 판**: 50 방향을 위에서 내려다본 원. 누르거나 끌면 가장 가까운 방향의 컷으로.
-    ←/→ 는 방위각 차례로 한 바퀴, ↑/↓ 는 더 높은·낮은 빛으로
-  확대·이동은 DiaRUGA `_atlasview.html` 에서 왔다(아래 스크립트 머리).
+  더미 화면 (P01 2단계, wetherilli 005). DiaRUGA 시야 화면(`group.html`·`_detection.html`·`_shots.html`, v0.37.1)의
+  구성을 옮겼다 — [왼쪽 칸: 화면 조정·이 슬랩의 더미 격자] [가운데: 검은 판의 사진 + 떠 있는 「보기」 도구 + 배율 표시,
+  아래 컷 카드 줄] [오른쪽 칸: 빛 방향 판·정보·같은 묶음]. 줄에 올리면 미리 보고 누르면 정한다.
 
-  **컷을 화면 폭 축소본(1600)으로 모두 미리 받는다** — 판을 끌 때 끊기면 빛이 도는 것이 안 보인다(P01).
-  확대해 축소본보다 커지면 **지금 컷만** 원본으로 바꾼다(장당 5~10 MB).
+  **종류마다 다르게 건다**(사용자 2026-10-25):
+  - `series`(카탈로그 빛 묶음) — 컷 번호 줄. ←/→ 와 숫자 키
+  - `ptm` — 오른쪽 칸의 **빛 방향 판**: 50 방향을 위에서 내려다본 원. 누르거나 끌면 가장 가까운 방향의 컷으로.
+    ←/→ 는 방위각 차례로 한 바퀴, ↑/↓ 는 더 높은·낮은 빛으로
+
+  **해상도는 둘이다**(사용자 2026-10-25, 005 §해상도) — 저해상도는 모든 컷을 1600 폭으로 미리 받고 확대해도 원본을
+  부르지 않는다. 고해상도는 모든 컷을 2560 폭으로 미리 받고, 그보다 확대하면 지금 컷만 원본으로 바꾼다.
 {% endcomment %}
-{% block subtitle %}<a href="{% url 'home' %}">목록</a> /
+{% block subtitle %}<a href="{% url 'home' %}">표본</a> /
   <a href="{% url 'slab' stack.slab.slab_no %}">{{ stack.slab.slab_no }}</a> /
-  <b>{{ stack.label }}</b> ·
-  <span class="chip{% if stack.kind == 'ptm' %} ptm{% endif %}">{{ stack.get_kind_display }}</span>
-  {% if stack.preparation != 'none' %}<span class="chip">{{ stack.get_preparation_display }}</span>{% endif %}
-  {% if stack.view == 'zoom' %}<span class="chip">확대</span>{% endif %}
-  {% if stack.copy_of %}<span class="chip copy">사본</span>{% endif %}
-  · {{ stack.n_frames }}컷
+  <b>{{ stack.label }}</b> · {{ stack.n_frames }}컷
   {% if stack.specimen and stack.specimen.taxon_name %} · <i>{{ stack.specimen.taxon_name }}</i>{% endif %}{% endblock %}
 {% block nav %}
-  {% if prev_id %}<a href="{% url 'stack' prev_id %}" id="go-prev" title="앞 더미 (PageUp)">← 앞 더미</a>{% endif %}
-  {% if next_id %}<a href="{% url 'stack' next_id %}" id="go-next" title="뒤 더미 (PageDown)">뒤 더미 →</a>{% endif %}
+  {% if prev_id %}<a href="{% url 'stack' prev_id %}" id="go-prev" title="이 슬랩의 앞 더미 (PageUp)">← 앞 더미</a>{% endif %}
+  {% if next_id %}<a href="{% url 'stack' next_id %}" id="go-next" title="이 슬랩의 뒤 더미 (PageDown)">뒤 더미 →</a>{% endif %}
 {% endblock %}
 {% block mainclass %} class="wide"{% endblock %}
+{% block footer %}{% endblock %}
 {% block head %}
 <style>
-  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 1rem; align-items: start; }
-  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  main.wide { padding-top: 12px; }
+  .sv { display: grid; grid-template-columns: 250px minmax(0, 1fr) 280px; gap: 12px; align-items: start; }
+  @media (max-width: 1150px) { .sv { grid-template-columns: minmax(0, 1fr) 270px; } .sv .lcol { display: none; } }
+  @media (max-width: 800px) { .sv { grid-template-columns: minmax(0, 1fr); } }
 
-  .bar { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin-bottom: .5rem; font-size: .9rem; }
-  .bar .cap { font-weight: 600; min-width: 9rem; }
-  .bar label { display: inline-flex; gap: .3rem; align-items: center; color: var(--dim); }
-  .bar input[type=range] { width: 6rem; }
-  .zoom { display: inline-flex; gap: .3rem; align-items: center; }
-  .zoom .lv { font-variant-numeric: tabular-nums; color: var(--dim); min-width: 4.4em; text-align: right; }
-  .mode { display: inline-flex; }
-  .mode button { border: 1px solid var(--line); background: var(--panel); padding: .15rem .55rem; cursor: pointer; }
-  .mode button:first-child { border-radius: 4px 0 0 4px; }
-  .mode button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
-  .mode button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .keys { color: var(--dim); font-size: .8rem; margin-left: auto; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; font-size: 12.5px; }
+  .panel + .panel { margin-top: 10px; }
+  .panel h3 { margin: 0 0 8px; font-size: 12.5px; font-weight: 700; display: flex; align-items: baseline; gap: 6px; }
+  .panel h3 .dim { font-weight: 400; }
+  .adj label { display: block; color: var(--dim); font-size: 12px; margin-top: 4px; }
+  .adj input[type=range] { width: 100%; accent-color: var(--accent); }
+  .adj .btn { font-size: 11.5px; padding: 2px 8px; margin-top: 6px; }
 
-  .aview { position: relative; overflow: hidden; height: 70vh; min-height: 320px; background: var(--view);
-           border-radius: 6px; touch-action: none; }
-  .aview.grabbable { cursor: grab; }
-  .aview.grabbing { cursor: grabbing; }
+  .sibs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .sib { position: relative; display: block; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #000; }
+  .sib img, .sib .noimg { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+  .sib .lb { position: absolute; left: 3px; bottom: 3px; font-size: 10px; line-height: 1.4; padding: 0 4px; border-radius: 3px;
+             background: rgba(0,0,0,.65); color: #fff; max-width: calc(100% - 6px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .sib .kd { position: absolute; right: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .sib .kd.ptm { background: var(--light); }
+  .sib:hover { border-color: var(--accent); }
+  .sib.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+
+  .keys dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
+  .keys dt { font-family: ui-monospace, monospace; font-size: 11.5px; }
+  .keys dd { margin: 0; color: var(--dim); }
+
+  /* 가운데 판 — DiaRUGA `.detview`: 검은 바탕, 둥근 테, 위에 떠 있는 도구 */
+  .detview { position: relative; overflow: hidden; height: 70vh; min-height: 320px; background: #000;
+             border: 1px solid var(--line); border-radius: 9px; touch-action: none; user-select: none; }
+  .detview.grabbable { cursor: grab; }
+  .detview.grabbing { cursor: grabbing; }
   #acanvas { transform-origin: center center; will-change: transform; width: 100%; height: 100%;
              display: flex; align-items: center; justify-content: center; }
-  #main { max-width: 100%; max-height: 100%; display: block; user-select: none; -webkit-user-drag: none; }
-  .loading { position: absolute; right: .6rem; bottom: .5rem; color: #bbb; font-size: .8rem;
-             background: rgba(0,0,0,.45); padding: .1rem .45rem; border-radius: 4px; }
+  #main { max-width: 100%; max-height: 100%; display: block; -webkit-user-drag: none; }
+  .detview:fullscreen { border-radius: 0; border: 0; }
 
-  .strip { display: flex; gap: 4px; overflow-x: auto; padding: 6px 0; }
-  .shot { flex: 0 0 auto; border: 2px solid transparent; border-radius: 4px; padding: 0; background: none;
-          cursor: pointer; position: relative; }
-  .shot img { display: block; height: 64px; width: auto; border-radius: 2px; background: #ccc; }
-  .shot .no { position: absolute; left: 3px; top: 2px; font-size: .72rem; color: #fff;
-              text-shadow: 0 0 3px #000, 0 0 2px #000; }
-  .shot.on { border-color: var(--accent); }
-  .shot.peek { border-color: #9cc3ee; }
+  .toolcol { position: absolute; top: 8px; right: 8px; z-index: 6; display: flex; flex-direction: column; gap: 2px; padding: 4px;
+             line-height: 1.15; background: color-mix(in srgb, var(--panel) 90%, transparent);
+             border: 1px solid var(--line); border-radius: 11px; box-shadow: 0 4px 16px rgba(0,0,0,.28); backdrop-filter: blur(6px); }
+  .tool-cap { padding: 1px 0 3px; margin-bottom: 1px; text-align: center; font-size: 10px; font-weight: 700;
+              letter-spacing: .1em; color: var(--dim); border-bottom: 1px solid var(--line); }
+  .tool { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+          width: 50px; height: 46px; padding: 0; font: inherit; font-size: 10px; font-weight: 500; color: var(--fg);
+          background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+  .tool svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tool:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .tool.on { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+  .tool-sep { height: 1px; margin: 2px 6px; background: var(--line); }
+  .tool .rl { font-size: 13px; font-weight: 750; letter-spacing: -.02em; line-height: 21px; }
 
-  .side { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .7rem; font-size: .86rem; }
-  .side h3 { font-size: .9rem; margin: .2rem 0 .4rem; }
-  .side dl { display: grid; grid-template-columns: auto 1fr; gap: .15rem .6rem; margin: 0; }
-  .side dt { color: var(--dim); }
-  .side dd { margin: 0; overflow-wrap: anywhere; }
-  .side ul { margin: 0; padding-left: 1.1rem; }
-  .side li { margin: .15rem 0; overflow-wrap: anywhere; }
-  .side section + section { margin-top: .9rem; border-top: 1px solid var(--line); padding-top: .6rem; }
+  .zoomtag { position: absolute; left: 8px; bottom: 10px; z-index: 3; background: rgba(0,0,0,.6); color: #fff;
+             font: 11px/1.5 ui-monospace, monospace; padding: 2px 7px; border-radius: 5px; }
+  .loadtag { position: absolute; right: 8px; bottom: 10px; z-index: 3; background: rgba(0,0,0,.6); color: #ddd;
+             font-size: 11px; line-height: 1.5; padding: 2px 7px; border-radius: 5px; }
+  .loadtag:empty { display: none; }
+  .lighttag { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 3; background: rgba(0,0,0,.6);
+              color: #fff; font-size: 12px; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+
+  .shotcap { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 9px 2px 0; font-size: 13px; }
+  .shotcap a { margin-left: auto; font-size: 12px; }
+  .striprow { display: flex; gap: 6px; align-items: stretch; }
+  .strip { display: flex; gap: 8px; overflow-x: auto; padding: 9px 2px 4px; scrollbar-width: thin; flex: 1 1 auto; min-width: 0; }
+  .navbtn { flex: 0 0 auto; width: 26px; margin: 9px 0 4px; padding: 0; display: flex; align-items: center; justify-content: center;
+            background: var(--panel); color: var(--dim); border: 1px solid var(--line); border-radius: 7px; font: inherit; cursor: pointer; }
+  .navbtn:hover { border-color: var(--accent); color: var(--accent); }
+  .shot { flex: 0 0 auto; width: 118px; padding: 0; cursor: pointer; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 8px; overflow: hidden; color: inherit; font: inherit; text-align: left; line-height: 1.4;
+          display: flex; flex-direction: column; }
+  .shot:hover { border-color: var(--accent); }
+  .shot.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+  .shot.peek { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+  .shot img { flex: 0 0 auto; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; display: block; background: #000; }
+  .shot .cap { display: block; padding: 4px 7px 6px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .shot .cap b { font-size: 12px; margin-right: 4px; }
 
   #pad { width: 100%; max-width: 250px; display: block; margin: 0 auto; touch-action: none; cursor: crosshair; }
-  #pad .rim { fill: #f3f3f0; stroke: #999; stroke-width: .012; }
-  #pad .ring { fill: none; stroke: #ccc; stroke-width: .006; stroke-dasharray: .03 .02; }
-  #pad .axis { stroke: #ccc; stroke-width: .006; }
-  #pad .lbl { font-size: .085px; fill: #999; text-anchor: middle; dominant-baseline: middle; }
-  #pad .dot { fill: #8aa4c0; }
-  #pad .dot.peek { fill: #f0a830; }
-  #pad .dot.on { fill: #d0451b; }
-  .padnote { color: var(--dim); font-size: .78rem; margin: .3rem 0 0; }
+  #pad .rim { fill: var(--bg); stroke: var(--dim); stroke-width: .012; }
+  #pad .ring { fill: none; stroke: var(--line); stroke-width: .008; stroke-dasharray: .03 .02; }
+  #pad .axis { stroke: var(--line); stroke-width: .008; }
+  #pad .lbl { font-size: .085px; fill: var(--dim); text-anchor: middle; dominant-baseline: middle; }
+  #pad .dot { fill: var(--dim); opacity: .75; }
+  #pad .dot.peek { fill: var(--accent); opacity: 1; }
+  #pad .dot.on { fill: var(--light); opacity: 1; }
+  .padnote { color: var(--dim); font-size: 11.5px; margin: 6px 0 0; line-height: 1.5; }
+  .info dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+  .info dt { color: var(--dim); }
+  .info dd { margin: 0; overflow-wrap: anywhere; }
+  .fam { list-style: none; margin: 0; padding: 0; }
+  .fam li { padding: 5px 0; border-top: 1px solid var(--line); }
+  .fam li:first-child { border-top: 0; }
+  .fam .mono { display: block; color: var(--dim); font-size: 11px; overflow-wrap: anywhere; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="layout">
-  <div>
-    <div class="bar">
-      <span class="cap" id="cap"></span>
-      <span class="zoom">
-        <button type="button" id="zoom-out" title="작게 (-)">−</button>
-        <span class="lv" id="zoom-lv">×1.0</span>
-        <button type="button" id="zoom-in" title="크게 (+)">+</button>
-        <button type="button" id="zoom-fit" title="화면에 맞춘다 (0)">맞춤</button>
-      </span>
-      <span class="mode" role="group" aria-label="해상도">
-        <button type="button" data-mode="low" title="컷을 1600 폭으로 받는다 — 넘기기가 가볍다. 확대하면 흐려진다 (h)">저해상도</button>
-        <button type="button" data-mode="high" title="컷을 2560 폭으로 받고, 그보다 확대하면 지금 컷만 원본으로 (h)">고해상도</button>
-      </span>
-      <label>밝기 <input type="range" id="bright" min="50" max="200" value="100"></label>
-      <label>대비 <input type="range" id="contrast" min="50" max="250" value="100"></label>
-      <span class="keys">{% if stack.kind == 'ptm' %}← → 방위 · ↑ ↓ 고도{% else %}← → 컷 · 숫자 키{% endif %} · 휠 확대 · h 해상도 · PageUp/Down 더미</span>
+<div class="sv">
+  <aside class="lcol">
+    <div class="panel adj">
+      <h3>화면 조정 <span class="dim">사진에만</span></h3>
+      <label for="bright">밝기 <span id="bright-v">100%</span></label>
+      <input type="range" id="bright" min="40" max="220" value="100">
+      <label for="contrast">대비 <span id="contrast-v">100%</span></label>
+      <input type="range" id="contrast" min="40" max="260" value="100">
+      <button type="button" class="btn" id="tone-reset">되돌리기</button>
     </div>
-    <div class="aview" id="aview">
-      <div id="acanvas"><img id="main" alt="{{ stack.label }}" draggable="false"></div>
-      <span class="loading" id="loading"></span>
+    <div class="panel">
+      <h3>{{ stack.slab.slab_no }} <span class="dim">더미 {{ siblings|length }}</span></h3>
+      <div class="sibs">
+        {% for x in siblings %}
+        <a class="sib{% if x.id == primary_id %} on{% endif %}" href="{% url 'stack' x.id %}"
+           title="{{ x.label }} · {{ x.get_kind_display }} · {{ x.get_preparation_display }} · {{ x.get_view_display }} · {{ x.n_frames }}컷">
+          {% if x.first_frame %}<img loading="lazy" src="{% frame_url x.first_frame 200 %}" alt="">{% else %}<span class="noimg"></span>{% endif %}
+          <span class="kd{% if x.kind == 'ptm' %} ptm{% endif %}"></span>
+          <span class="lb">{% if x.specimen %}{{ x.specimen.letter }}{% else %}—{% endif %}{% if x.preparation != 'none' %} · {{ x.get_preparation_display }}{% endif %}{% if x.view == 'zoom' %} · 확대{% endif %}</span>
+        </a>
+        {% endfor %}
+      </div>
     </div>
-    <div class="strip" id="strip">
-      {% for f in frames %}
-      <button type="button" class="shot" data-i="{{ forloop.counter0 }}"
-              title="{% if f.shot_no is not None %}{{ f.shot_no }}번 · {% endif %}{{ f.path|cut:stack.source_dir|cut:'/' }}{% if f.light_z is not None %} · 방위 {{ f.azimuth|floatformat:0 }}° 고도 {{ f.elevation|floatformat:0 }}°{% endif %}">
-        <img loading="lazy" src="{% frame_url f.id 200 %}" alt="">
-        <span class="no">{% if f.shot_no is not None %}{{ f.shot_no }}{% else %}{{ forloop.counter }}{% endif %}</span>
-      </button>
-      {% endfor %}
+    <div class="panel keys">
+      <h3>키</h3>
+      <dl>
+        {% if stack.kind == 'ptm' %}<dt>← →</dt><dd>방위 차례로</dd><dt>↑ ↓</dt><dd>높은·낮은 빛</dd>
+        {% else %}<dt>← →</dt><dd>앞·뒤 컷</dd><dt>1–9</dt><dd>그 번호의 컷</dd>{% endif %}
+        <dt>휠 · + −</dt><dd>확대 · 축소</dd><dt>0</dt><dd>맞춤</dd>
+        <dt>h</dt><dd>저해상도 ↔ 고해상도</dd><dt>f</dt><dd>전체 화면</dd>
+        <dt>PgUp PgDn</dt><dd>앞·뒤 더미</dd>
+      </dl>
     </div>
-  </div>
+  </aside>
 
-  <aside class="side">
+  <section>
+    <div class="detview" id="aview">
+      <div id="acanvas"><img id="main" alt="{{ stack.label }}" draggable="false"></div>
+      <div class="toolcol" role="toolbar" aria-label="보기">
+        <span class="tool-cap">보기</span>
+        <button type="button" class="tool" data-act="fit" title="맞춤 — 사진 전체가 보이게 (0)">
+          <svg viewBox="0 0 24 24"><path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15"/><rect x="8.5" y="8.5" width="7" height="7" rx="1"/></svg><span>맞춤</span></button>
+        <button type="button" class="tool" data-act="full" title="사진을 화면 전체로 (f · Esc 로 돌아온다)">
+          <svg viewBox="0 0 24 24"><path d="M4.5 9.5v-5h5M4.5 4.5l5 5M19.5 9.5v-5h-5M19.5 4.5l-5 5M4.5 14.5v5h5M4.5 19.5l5-5M19.5 14.5v5h-5M19.5 19.5l-5-5"/></svg><span>전체 화면</span></button>
+        <span class="tool-sep"></span>
+        <button type="button" class="tool" data-mode="low" title="저해상도 — 컷을 1600 폭으로 받는다. 넘기기가 가볍고, 크게 확대하면 흐려진다 (h)"><span class="rl">SD</span><span>저해상도</span></button>
+        <button type="button" class="tool" data-mode="high" title="고해상도 — 컷을 2560 폭으로 받고, 그보다 확대하면 지금 컷만 원본으로 (h)"><span class="rl">HD</span><span>고해상도</span></button>
+      </div>
+      {% if stack.kind == 'ptm' %}<span class="lighttag" id="lighttag"></span>{% endif %}
+      <span class="zoomtag" id="zoom-lv" title="원본 화소 기준 배율"></span>
+      <span class="loadtag" id="loading"></span>
+    </div>
+    <div class="shotcap"><b id="cap"></b><span class="dim" id="capnote"></span>
+      <a id="orig-link" href="#" target="_blank" rel="noopener">원본 열기 ↗</a></div>
+    <div class="striprow">
+      <button type="button" class="navbtn" id="strip-prev" title="앞 컷 (←)">‹</button>
+      <div class="strip" id="strip">
+        {% for f in frames %}
+        <button type="button" class="shot" data-i="{{ forloop.counter0 }}">
+          <img loading="lazy" src="{% frame_url f.id 200 %}" alt="">
+          <span class="cap">{% if f.shot_no is not None %}<b>{{ f.shot_no }}</b>{% else %}<b>{{ forloop.counter }}</b>{% endif %}{% if f.light_z is not None %}{{ f.azimuth|floatformat:0 }}° · {{ f.elevation|floatformat:0 }}°{% else %}<span class="dim">{{ f.path|cut:stack.source_dir|cut:'/' }}</span>{% endif %}</span>
+        </button>
+        {% endfor %}
+      </div>
+      <button type="button" class="navbtn" id="strip-next" title="뒤 컷 (→)">›</button>
+    </div>
+  </section>
+
+  <aside>
     {% if stack.kind == 'ptm' %}
-    <section>
-      <h3>빛 방향</h3>
+    <div class="panel">
+      <h3>빛 방향 <span class="dim">{{ frames|length }} 방향</span></h3>
       <svg id="pad" viewBox="-1.12 -1.12 2.24 2.24" aria-label="빛 방향 판">
         <circle class="rim" r="1"></circle>
         <circle class="ring" r="0.866"></circle>
@@ -131,19 +203,21 @@
         <text class="lbl" x="1.07" y="0">+x</text>
         <g id="dots"></g>
       </svg>
-      <p class="padnote">위에서 내려다본 빛의 자리 — 가운데가 바로 위, 테가 수평. 고리는 고도 30°·60°.
-        <b>x·y 축이 그림의 어느 쪽인지는 아직 그림자로 맞추지 않았다</b>(+x 오른쪽, +y 위로 그렸다).</p>
-    </section>
+      <p class="padnote">위에서 내려다본 빛의 자리 — 가운데가 바로 위, 테가 수평, 고리는 고도 30°·60°. 누르거나 끌면 그 방향의 컷.
+        <b>x·y 가 사진의 어느 쪽인지는 아직 그림자로 맞추지 않았다</b>(+x 오른쪽, +y 위로 그렸다).</p>
+    </div>
     {% endif %}
-    <section>
-      <h3>더미</h3>
+    <div class="panel info">
+      <h3>더미 <span class="tag {{ stack.kind }}">{{ stack.get_kind_display }}</span>{% if stack.copy_of %}<span class="tag copy">사본</span>{% endif %}</h3>
       <dl>
-        <dt>슬랩</dt><dd><a href="{% url 'slab' stack.slab.slab_no %}">{{ stack.slab.slab_no }}</a>
-          {% if stack.slab.catalog_id %}<a href="{{ catalog }}slab_detail/{{ stack.slab.catalog_id }}/" target="_blank" rel="noopener">↗</a>{% endif %}</dd>
         <dt>표본</dt><dd>{% if stack.specimen %}{{ stack.specimen.specimen_no }}
           {% if stack.specimen.catalog_id %}<a href="{{ catalog }}specimen_detail/{{ stack.specimen.catalog_id }}/" target="_blank" rel="noopener">↗</a>{% endif %}
+          {% if stack.specimen.taxon_name %}<br><i>{{ stack.specimen.taxon_name }}</i>{% endif %}
           {% if stack.specimen.phylum %}<br><span class="dim">{{ stack.specimen.phylum }}</span>{% endif %}
           {% else %}<span class="dim">정하지 않음</span>{% endif %}</dd>
+        <dt>슬랩</dt><dd><a href="{% url 'slab' stack.slab.slab_no %}">{{ stack.slab.slab_no }}</a>
+          {% if stack.slab.catalog_id %}<a href="{{ catalog }}slab_detail/{{ stack.slab.catalog_id }}/" target="_blank" rel="noopener">↗</a>{% endif %}
+          {% if stack.slab.horizon %}<span class="dim"> · {{ stack.slab.horizon }}</span>{% endif %}</dd>
         <dt>처리</dt><dd>{{ stack.get_preparation_display }} · {{ stack.get_view_display }}</dd>
         <dt>크기</dt><dd>{{ stack.width }} × {{ stack.height }}</dd>
         {% if stack.camera %}<dt>카메라</dt><dd>{{ stack.camera }}</dd>{% endif %}
@@ -151,18 +225,19 @@
         <dt>폴더</dt><dd class="mono">{{ stack.source_dir }}</dd>
         {% if stack.ptm_file %}<dt>PTM</dt><dd class="mono">{{ stack.ptm_file }}</dd>{% endif %}
       </dl>
-    </section>
+    </div>
     {% if family %}
-    <section>
-      <h3>같은 묶음 {{ family|length }}벌</h3>
-      <ul>
+    <div class="panel">
+      <h3>같은 묶음 <span class="dim">{{ family|length }}벌</span></h3>
+      <ul class="fam">
         {% for s in family %}
-        <li>{% if s.id == stack.id %}<b>{% else %}<a href="{% url 'stack' s.id %}">{% endif %}{% if not s.copy_of_id %}정본{% else %}사본{% endif %} · {{ s.n_frames }}컷{% if s.id == stack.id %}</b>{% else %}</a>{% endif %}
-          <br><span class="mono dim">{{ s.source_dir }}</span></li>
+        <li>{% if s.id == stack.id %}<b>{% else %}<a href="{% url 'stack' s.id %}">{% endif %}{% if not s.copy_of_id %}정본{% else %}사본{% endif %} · {{ s.n_frames }}컷{% if s.id == stack.id %}</b> <span class="dim">보는 중</span>{% else %}</a>{% endif %}
+          <span class="mono">{{ s.source_dir }}</span></li>
         {% endfor %}
       </ul>
-    </section>
+    </div>
     {% endif %}
+    <p class="dim" style="font-size:11px;margin:10px 2px 0;line-height:1.6">{% include "core/_credit.html" %}</p>
   </aside>
 </div>
 
@@ -172,12 +247,12 @@
   var FR = JSON.parse(document.getElementById('frames-data').textContent);
   if (!FR.length) return;
   var IS_PTM = {% if stack.kind == 'ptm' %}true{% else %}false{% endif %};
+  var ORIG_W = {{ stack.width|default:0 }};
   var BASE = "{% url 'frame_image' 0 %}".replace('0.jpg', '');
   function url(f, w) { return BASE + f.id + '.jpg' + (w ? '?w=' + w : ''); }
-  // 저해상도·고해상도 (사용자 2026-10-25, 005 §해상도). 잰 값(이 서버, 같은 망 밖은 더 느리다):
-  // 원본은 장당 7~8 MB 이고 **브라우저 캐시에 있어도 넘길 때마다 0.13~0.29 초**(18 MP 를 다시 푼다) — 판을 끌면 끊긴다.
-  // 1600 은 0.4~0.6 MB, 넘기기 0~30 ms. 2560 은 원본의 절반 폭이라 JPEG 를 1/2 로 풀어 만들어(장당 0.25 초, 한 번만)
-  // 0.8~1.3 MB, 넘기기 0~35 ms. 그래서 고해상도도 모든 컷을 미리 받고, 원본은 그보다 확대할 때 지금 컷만.
+
+  // 저해상도·고해상도 (005 §해상도에 잰 값). 원본은 브라우저 캐시에 있어도 넘길 때마다 0.13~0.29 초 —
+  // 18 MP 를 다시 푼다 — 라서 고해상도도 모든 컷은 2560 으로 받고, 원본은 그보다 확대할 때 지금 컷만.
   var WIDTH = { low: 1600, high: 2560 };
   var MKEY = 'siriopsis.mode';
   var mode = 'low';
@@ -187,14 +262,14 @@
   var view = document.getElementById('aview');
   var canvas = document.getElementById('acanvas');
   var main = document.getElementById('main');
-  var cap = document.getElementById('cap');
+  var cap = document.getElementById('cap'), capnote = document.getElementById('capnote');
+  var origLink = document.getElementById('orig-link');
+  var lighttag = document.getElementById('lighttag');
   var loading = document.getElementById('loading');
   var shots = Array.prototype.slice.call(document.querySelectorAll('#strip .shot'));
-  var cur = 0, peek = null;
+  var cur = 0, peek = null, shown = -1;
 
-  // --- 미리 받기 ------------------------------------------------------------
-  // 지금 컷에서부터 넷씩. 받은 것은 브라우저 캐시에 남아 src 를 바꾸면 곧바로 그려진다
-  // 해상도를 바꾸면 처음부터 다시 — 앞 해상도의 받기가 남아 있어도 차례(round)가 달라 그 결과는 세지 않는다
+  // --- 미리 받기 — 지금 컷에서부터 넷씩. 해상도를 바꾸면 처음부터(round) -------
   var got = 0, queue = [], round = 0;
   function preload() {
     round++; got = 0;
@@ -208,20 +283,24 @@
     im.onload = im.onerror = function () {
       if (r !== round) return;
       got++;
-      loading.textContent = got < FR.length ? '미리 받는 중 ' + got + '/' + FR.length + ' · ' + w + ' 폭' : '';
+      loading.textContent = got < FR.length ? '미리 받는 중 ' + got + '/' + FR.length : '';
       next(r);
     };
     im.src = url(FR[i], w);
   }
 
   // --- 컷 바꾸기 ------------------------------------------------------------
-  function label(f) {
-    if (IS_PTM) return (f.seq + 1) + '/' + FR.length + ' · 방위 ' + Math.round(f.az) + '° · 고도 ' + Math.round(f.el) + '°';
-    return (f.no != null ? f.no + '번' : (f.seq + 1) + '') + ' · ' + f.name;
-  }
   function draw(i) {
     var f = FR[i];
-    cap.textContent = label(f);
+    if (IS_PTM) {
+      cap.textContent = (f.seq + 1) + ' / ' + FR.length;
+      capnote.textContent = '방위 ' + Math.round(f.az) + '° · 고도 ' + Math.round(f.el) + '° · ' + f.name;
+      lighttag.textContent = '빛 ' + Math.round(f.az) + '° · ' + Math.round(f.el) + '°';
+    } else {
+      cap.textContent = (f.no != null ? f.no + '번' : (f.seq + 1) + '') + ' / ' + FR.length;
+      capnote.textContent = f.name;
+    }
+    origLink.href = url(f);
     if (hires) {
       // 원본은 무겁다 — 다 받을 때까지 지금 그림을 둔다
       var im = new Image();
@@ -234,8 +313,10 @@
     shots.forEach(function (b, j) { b.classList.toggle('on', j === cur); b.classList.toggle('peek', j === peek && j !== cur); });
     if (IS_PTM) paintDots();
   }
-  var shown = -1;
-  function go(i) { cur = (i + FR.length) % FR.length; peek = null; draw(cur); remember(); }
+  function go(i) {
+    cur = (i + FR.length) % FR.length; peek = null; draw(cur); remember();
+    if (shots[cur]) shots[cur].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
   function look(i) { peek = i; draw(i === null ? cur : i); }
 
   shots.forEach(function (b, j) {
@@ -243,8 +324,9 @@
     b.addEventListener('click', function () { go(j); });
   });
   document.getElementById('strip').addEventListener('mouseleave', function () { look(null); });
+  document.getElementById('strip-prev').addEventListener('click', function () { stepAz(-1); });
+  document.getElementById('strip-next').addEventListener('click', function () { stepAz(1); });
 
-  // 어느 컷을 보던 중이었는지 — 더미마다, 창을 닫으면 잊는다
   var SKEY = 'siriopsis.stack.{{ stack.id }}';
   function remember() { try { sessionStorage.setItem(SKEY, String(cur)); } catch (e) {} }
   try { var s = parseInt(sessionStorage.getItem(SKEY), 10); if (s >= 0 && s < FR.length) cur = s; } catch (e) {}
@@ -254,14 +336,14 @@
   if (IS_PTM) {
     var NS = 'http://www.w3.org/2000/svg';
     var g = document.getElementById('dots');
-    FR.forEach(function (f, i) {
+    FR.forEach(function (f) {
       var c = document.createElementNS(NS, 'circle');
       c.setAttribute('cx', f.x); c.setAttribute('cy', -f.y); c.setAttribute('r', 0.045);
       c.setAttribute('class', 'dot');
       g.appendChild(c); dots.push(c);
     });
     var pad = document.getElementById('pad');
-    function nearest(e) {
+    var nearest = function (e) {
       var p = pad.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
       var q = p.matrixTransform(pad.getScreenCTM().inverse());
       var best = 0, bd = Infinity;
@@ -270,7 +352,7 @@
         if (d < bd) { bd = d; best = i; }
       });
       return best;
-    }
+    };
     var pressing = false;
     pad.addEventListener('pointerdown', function (e) { pressing = true; pad.setPointerCapture(e.pointerId); go(nearest(e)); });
     pad.addEventListener('pointermove', function (e) {
@@ -283,7 +365,7 @@
   function paintDots() {
     dots.forEach(function (c, i) {
       c.setAttribute('class', 'dot' + (i === cur ? ' on' : (i === peek ? ' peek' : '')));
-      c.setAttribute('r', i === cur ? 0.065 : 0.045);
+      c.setAttribute('r', i === cur ? 0.068 : (i === peek ? 0.058 : 0.045));
     });
   }
   // 방위각 차례 — ←/→ 는 이 차례로 한 바퀴
@@ -308,18 +390,22 @@
 
   // --- 확대 / 이동 ----------------------------------------------------------
   // DiaRUGA `_atlasview.html`(v0.37.1)에서 왔다 — 커서 아래 지점을 붙잡는 확대, 끌어 옮기기, 창 높이 재기.
-  // 배율은 곱수(×)로 말한다: 원본을 받아 온 때만 「원본」이라 적는다.
+  // 배율 표시는 DiaRUGA 시야 화면처럼 **원본 화소 기준 %** — 맞춤 상태에서도 원본을 얼마나 줄여 보는지 알 수 있다.
   var k = 1, tx = 0, ty = 0, hires = false, MAXK = 16;
   var lv = document.getElementById('zoom-lv');
   function fitHeight() {
-    var top = view.getBoundingClientRect().top + window.scrollY;
-    var strip = document.getElementById('strip').getBoundingClientRect().height;
-    view.style.height = Math.max(320, window.innerHeight - top - strip - 30) + 'px';
+    if (document.fullscreenElement) { view.style.height = ''; return; }
+    var top = view.getBoundingClientRect().top;
+    var below = document.querySelector('.shotcap').getBoundingClientRect().height +
+                document.querySelector('.striprow').getBoundingClientRect().height;
+    view.style.height = Math.max(320, window.innerHeight - top - below - 18) + 'px';
   }
   function apply() {
     canvas.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + k + ')';
     view.classList.toggle('grabbable', k > 1);
-    lv.textContent = '×' + (k < 10 ? k.toFixed(1) : String(Math.round(k))) + (hires ? ' 원본' : '');
+    var pct = ORIG_W && main.offsetWidth ? main.offsetWidth * k / ORIG_W * 100 : 0;
+    lv.textContent = (pct ? (pct < 10 ? pct.toFixed(1) : Math.round(pct)) + '%' : '×' + k.toFixed(1)) +
+                     (hires ? ' · 원본' : ' · ' + (mode === 'high' ? 'HD' : 'SD'));
     maybeHiRes();
   }
   function clampPan() {
@@ -346,7 +432,6 @@
   function zoomStep(f) { var r = view.getBoundingClientRect(); zoomAt(k * f, r.left + r.width / 2, r.top + r.height / 2); }
   // 맞춤으로 돌아오면 축소본으로 — 원본을 붙든 채 컷을 넘기면 장마다 몇 MB 를 받는다
   function fit() { k = 1; tx = 0; ty = 0; if (hires) { hires = false; draw(shown); } apply(); }
-  // 축소본보다 크게 보기 시작하면 지금 컷을 원본으로 — 축소본 폭을 박지 않고 naturalWidth 로 잰다
   // **저해상도에서는 원본으로 바꾸지 않는다** — 그 모드를 고른 까닭이 가벼움이다
   function maybeHiRes() {
     if (mode !== 'high' || hires || k === 1 || !main.naturalWidth) return;
@@ -359,26 +444,33 @@
     zoomAt(k * (e.deltaY < 0 ? 1.18 : 1 / 1.18), e.clientX, e.clientY);
   }, { passive: false });
   var drag = null;
-  view.addEventListener('pointerdown', function (e) {
+  canvas.addEventListener('pointerdown', function (e) {
     if (e.button !== 0 || k === 1) return;
     drag = { x: e.clientX, y: e.clientY, tx: tx, ty: ty };
-    view.classList.add('grabbing'); view.setPointerCapture(e.pointerId); e.preventDefault();
+    view.classList.add('grabbing'); canvas.setPointerCapture(e.pointerId); e.preventDefault();
   });
-  view.addEventListener('pointermove', function (e) {
+  canvas.addEventListener('pointermove', function (e) {
     if (!drag) return;
     tx = drag.tx + e.clientX - drag.x; ty = drag.ty + e.clientY - drag.y;
     clampPan(); apply();
   });
-  view.addEventListener('pointerup', function () { drag = null; view.classList.remove('grabbing'); });
-  view.addEventListener('dblclick', function (e) { if (k === 1) zoomAt(3, e.clientX, e.clientY); else fit(); });
-  document.getElementById('zoom-in').addEventListener('click', function () { zoomStep(1.25); });
-  document.getElementById('zoom-out').addEventListener('click', function () { zoomStep(1 / 1.25); });
-  document.getElementById('zoom-fit').addEventListener('click', fit);
+  canvas.addEventListener('pointerup', function () { drag = null; view.classList.remove('grabbing'); });
+  canvas.addEventListener('dblclick', function (e) { if (k === 1) zoomAt(3, e.clientX, e.clientY); else fit(); });
   main.addEventListener('load', function () { clampPan(); apply(); });
   window.addEventListener('resize', function () { fitHeight(); clampPan(); apply(); });
 
-  // --- 해상도 고르기 ---------------------------------------------------------
-  var modeBtns = Array.prototype.slice.call(document.querySelectorAll('.mode button'));
+  // --- 「보기」 도구 ---------------------------------------------------------
+  function toggleFull() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (view.requestFullscreen) view.requestFullscreen();
+  }
+  document.addEventListener('fullscreenchange', function () {
+    document.querySelector('[data-act="full"]').classList.toggle('on', !!document.fullscreenElement);
+    fitHeight(); clampPan(); apply();
+  });
+  document.querySelector('[data-act="fit"]').addEventListener('click', fit);
+  document.querySelector('[data-act="full"]').addEventListener('click', toggleFull);
+  var modeBtns = Array.prototype.slice.call(document.querySelectorAll('.tool[data-mode]'));
   function paintMode() { modeBtns.forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); }); }
   function setMode(m) {
     if (m === mode) return;
@@ -391,12 +483,15 @@
   modeBtns.forEach(function (b) { b.addEventListener('click', function () { setMode(b.dataset.mode); }); });
   paintMode();
 
-  // --- 밝기·대비 — 그림만 바꾼다(원본은 그대로) -----------------------------
+  // --- 화면 조정 — 사진에만(원본은 그대로) ----------------------------------
   var bright = document.getElementById('bright'), contrast = document.getElementById('contrast');
-  function tone() { main.style.filter = 'brightness(' + bright.value / 100 + ') contrast(' + contrast.value / 100 + ')'; }
+  function tone() {
+    main.style.filter = 'brightness(' + bright.value / 100 + ') contrast(' + contrast.value / 100 + ')';
+    document.getElementById('bright-v').textContent = bright.value + '%';
+    document.getElementById('contrast-v').textContent = contrast.value + '%';
+  }
   bright.addEventListener('input', tone); contrast.addEventListener('input', tone);
-  bright.addEventListener('dblclick', function () { bright.value = 100; tone(); });
-  contrast.addEventListener('dblclick', function () { contrast.value = 100; tone(); });
+  document.getElementById('tone-reset').addEventListener('click', function () { bright.value = 100; contrast.value = 100; tone(); });
 
   // --- 키 -------------------------------------------------------------------
   var prevA = document.getElementById('go-prev'), nextA = document.getElementById('go-next');
@@ -412,9 +507,10 @@
       case 'PageUp': if (prevA) window.location.href = prevA.href; break;
       case 'PageDown': if (nextA) window.location.href = nextA.href; break;
       case '0': fit(); break;
-      case 'h': case 'H': setMode(mode === 'high' ? 'low' : 'high'); break;
       case '+': case '=': zoomStep(1.25); break;
       case '-': case '_': zoomStep(1 / 1.25); break;
+      case 'h': case 'H': setMode(mode === 'high' ? 'low' : 'high'); break;
+      case 'f': case 'F': toggleFull(); break;
       default:
         // 빛 묶음: 숫자 키는 그 번호의 컷으로
         if (!IS_PTM && /^[1-9]$/.test(e.key)) {
@@ -430,7 +526,6 @@
   fitHeight();
   go(cur);
   preload();
-  if (shots[cur]) shots[cur].scrollIntoView({ block: 'nearest', inline: 'center' });
 })();
 </script>
 {% endblock %}

@@ -18,10 +18,11 @@
 | | 지금 |
 |---|---|
 | 웹 | Django 5.2 · `core`(`/healthz` — 더미·컷 수, 컷 0 이면 degraded) · `specimens`(테이블·반입 · 화면 `/`·`/slab/<번호>/`·`/stack/<id>/` · 컷 `/frame/<id>.jpg?w=`) |
+| 화면 | DiaRUGA 모양(006) — 목록은 연도 탭 → 백 번 구간 → NAS 열 개 폴더(또는 층준 구간), 설정 `/system/`(판 이력은 CHANGELOG), 대기 화면, 로고 `docs/assets/logo/` |
 | 뷰어 | PTM 은 빛 방향 판, 빛 묶음은 번호 줄. 저해상도(1600, 기본)·고해상도(2560 + 확대하면 지금 컷만 원본), `h` 키. 축소본 캐시 `THUMB_CACHE` |
 | 반입 | `scan_light_stacks`(PTM, `.lp`) · `scan_light_series`(카탈로그 빛 묶음, 정본 고르기) · `import_catalog`(phyloserver 목록) — 모두 원본은 읽기만 |
 | 테이블 | 개발 DB: 슬랩 4,304 · 표본 6,700(분류군 6,653) · 묶음 10,522(`series` 정본 8,876 + 사본 1,624 · `ptm` 22) · 컷 71,867 |
-| 시험 | 33 (`python web/manage.py test core specimens`) |
+| 시험 | 37 (`python web/manage.py test core specimens`) |
 | 이미지·CI | `deploy/Dockerfile` · `.github/workflows/test.yml`(시험 → 굽기, `v*` 태그만 push) |
 | 환경 | venv `~/venv/Siriopsis`, `workon sp`, `.guides` 링크, 개발 DB `Siriopsis.db`(gitignore — 반입 세 명령으로 7 분이면 다시 만든다) |
 | 자료 | NAS `/nfs/temp-share/Sirius Passet Catalog/`(읽기만). 작업 공간 `/nfs/temp-share/Siriopsis/` — 조사 표는 `survey/`, paleoadmin 요청은 `temp/` |

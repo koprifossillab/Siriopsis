@@ -61,3 +61,24 @@ class HomeTest(SafeTestCase):
         r = self.client.get(reverse("home"))
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Siriopsis")
+
+
+class SystemPageTest(SafeTestCase):
+    def test_changelog_rows_newest_first_with_github_links(self):
+        from core.views import changelog
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "CHANGELOG.md"
+            p.write_text("| 판 | 날짜 | 무엇 |\n|---|---|---|\n"
+                         "| — | 2026-10-25 | 첫 ([wetherilli 001](devlog/a.md)) |\n"
+                         "| v0.1.0 | 2026-10-26 | `/healthz` <b> |\n", encoding="utf-8")
+            rows = changelog(p)
+        self.assertEqual([r["ver"] for r in rows], ["v0.1.0", "—"])
+        self.assertIn("https://github.com/koprifossillab/Siriopsis/blob/main/devlog/a.md", rows[1]["what"])
+        self.assertIn("<code>/healthz</code> &lt;b&gt;", rows[0]["what"])     # 글자 속 태그는 글자로
+
+    def test_page_and_splash(self):
+        r = self.client.get(reverse("system"))
+        self.assertContains(r, "극지연구소 고생물진화연구실")
+        self.assertContains(r, "판 이력")
+        self.assertEqual(self.client.get(reverse("splash_asset", args=["ondark.webp"]))["Content-Type"], "image/webp")
+        self.assertEqual(self.client.get(reverse("splash_asset", args=["logo.json"])).status_code, 404)

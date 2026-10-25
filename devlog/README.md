@@ -13,6 +13,7 @@
 
 | 글 | 무엇 |
 |---|---|
+| [20261025_wetherilli_006](20261025_wetherilli_006_diaruga_look.md) | DiaRUGA 모양으로 — 연도·번호(NAS 열 개 폴더) 묶음 목록, 시야 화면 구성, 로고·대기 화면·설정·판 이력·바닥글 |
 | [20261025_wetherilli_005](20261025_wetherilli_005_viewer.md) | 뷰어 첫 판 — 목록·슬랩·더미 화면, PTM 빛 방향 판, 컷 서빙, 저해상도·고해상도(잰 값) |
 | [20261025_wetherilli_004](20261025_wetherilli_004_keep_copies.md) | 사본도 넣어 정본에 잇는다(1,624), 앞으로 사람이 묶음을 고친다 — 반입이 덮지 않게 |
 | [20261025_wetherilli_003](20261025_wetherilli_003_catalog_light_series.md) | 카탈로그 빛 묶음 8,876 — PTM 과 kind 로 가름, 정본 고르기, phyloserver 목록 전체 반입, P01 정정 |

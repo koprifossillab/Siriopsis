@@ -1,57 +1,172 @@
 {% extends "core/base.html" %}
 {% load specimens_extras %}
-{% block subtitle %}시리우스 파셋 표본 — 슬랩 <b>{{ page.paginator.count }}</b>{% endblock %}
+{% comment %}
+  슬랩 목록 (wetherilli 005). DiaRUGA 목록 화면(`index.html`)의 모양을 옮겼다 — 위의 구역 탭, 묶음마다 접히는 표,
+  묶음 줄의 합계, 맨 아래 합계 줄, 표·격자 전환. 묶음은 **채집 연도(탭) → 백 개 번호 구간 → NAS 의 열 개 폴더 → 슬랩**, 또는 층준 구간이다(`browse.py`).
+  접고 편 것은 이 창에서만 기억한다(sessionStorage) — 다른 연도로 가도 그 연도의 것을 따로.
+{% endcomment %}
 {% block head %}
 <style>
-  .find { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
-  .find input[type=search] { min-width: 16rem; padding: .3rem .5rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .8rem; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
-          color: inherit; display: block; }
-  .card:hover { border-color: var(--accent); text-decoration: none; }
-  .card .pic { aspect-ratio: 3 / 2; background: #ddd; display: block; width: 100%; object-fit: cover; }
-  .card .t { padding: .4rem .55rem .55rem; font-size: .88rem; }
-  .card .t, .card .t span { display: block; }
-  .card .taxa { color: var(--dim); font-style: italic; font-size: .82rem;
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .lhead h2 { margin: 0; font-size: 19px; }
+  .seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+  .seg a { padding: 4px 13px; border-radius: 6px; color: var(--fg); font-size: 13.5px; white-space: nowrap; }
+  .seg a small { color: var(--dim); font-size: 11px; margin-left: 4px; }
+  .seg a:hover { text-decoration: none; background: var(--group-bg); }
+  .seg a.on { background: var(--accent); color: var(--bg); font-weight: 650; }
+  .seg a.on small { color: inherit; opacity: .8; }
+  .lhead .years { margin: 0 auto; }
+  .seg.icons a { padding: 4px 8px; display: inline-flex; }
+  .seg.icons svg { width: 17px; height: 17px; }
+  form.find { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; }
+
+  table.slabs { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .slabs th { text-align: left; font-size: 11px; font-weight: 650; color: var(--dim); text-transform: uppercase;
+              letter-spacing: .4px; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .slabs td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .slabs .n { text-align: right; }
+  .slabs th.n { text-align: right; }
+  .slabs tr.grp td { background: var(--group-bg); font-weight: 650; cursor: pointer; user-select: none; }
+  .slabs tr.grp:hover td { background: var(--group-bg-hi); }
+  .slabs tr.grp .tw { display: inline-block; width: 1em; transition: transform .12s; }
+  .slabs tr.grp.shut .tw { transform: rotate(-90deg); }
+  .slabs tr.grp .gsub { color: var(--dim); font-weight: 400; font-size: 12px; margin-left: 6px; }
+  .slabs tr.row td:first-child { padding-left: 28px; }
+  .slabs tr.row a.no { font-weight: 650; font-size: 13.5px; }
+  .slabs tr.row[hidden] { display: none; }
+  .slabs tr.fold td { padding: 5px 10px 3px 28px; font-size: 11.5px; color: var(--dim);
+                      font-family: ui-monospace, monospace; border-bottom: 1px dashed var(--line); }
+  .slabs .taxa { font-style: italic; max-width: 26rem; }
+  .slabs .zero { color: var(--dim); opacity: .5; }
+  .slabs tr.sum td { font-weight: 650; border-top: 2px solid var(--line); border-bottom: 0; }
+  @media (max-width: 900px) { .slabs .wide-only { display: none; } }
   .pager { margin: 1.2rem 0; display: flex; gap: .8rem; align-items: center; }
 </style>
 {% endblock %}
+{% block mainclass %} class="wide"{% endblock %}
 {% block content %}
+<div class="lhead">
+  <h2>표본</h2>
+  <span class="dim">슬랩 {{ total_slabs }}</span>
+  <nav class="seg years" aria-label="채집 연도">
+    {% for y, n in years %}<a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}y={{ y }}{% if mode == 'grid' %}&view=grid{% endif %}"{% if y == year %} class="on"{% endif %}>SP-{{ y }}<small>{{ n }}</small></a>{% endfor %}
+    <a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}{% if mode == 'grid' %}view=grid{% endif %}"{% if not year %} class="on"{% endif %}>전체<small>{{ total_slabs }}</small></a>
+  </nav>
+  <nav class="seg icons" aria-label="보기">
+    <a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}{% if year %}y={{ year }}{% endif %}" title="표 — 층준 구간으로 묶는다"{% if mode == 'list' %} class="on"{% endif %}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg></a>
+    <a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}{% if year %}y={{ year }}&{% endif %}view=grid" title="격자 — 대표 사진"{% if mode == 'grid' %} class="on"{% endif %}>
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></a>
+  </nav>
+</div>
+
 <form class="find" method="get">
-  <input type="search" name="q" value="{{ q }}" placeholder="슬랩 번호·분류군 (예: 0052, Halkieria)" aria-label="찾기">
-  <select name="phylum" aria-label="문">
-    <option value="">문 전체</option>
-    {% for p in phyla %}<option value="{{ p }}"{% if p == phylum %} selected{% endif %}>{{ p }}</option>{% endfor %}
-  </select>
+  {% if year %}<input type="hidden" name="y" value="{{ year }}">{% endif %}
+  {% if mode == 'grid' %}<input type="hidden" name="view" value="grid">{% endif %}
+  <input type="search" name="q" value="{{ q }}" placeholder="슬랩 번호 · 분류군 · 문 (예: 0052, Kerygmachela, Arthropoda)" aria-label="찾기">
   <select name="kind" aria-label="종류">
     <option value="">종류 전체</option>
     {% for v, l in kinds %}<option value="{{ v }}"{% if v == kind %} selected{% endif %}>{{ l }}</option>{% endfor %}
   </select>
-  <button type="submit">찾기</button>
-  {% if keep %}<a href="{% url 'home' %}">모두 보기</a>{% endif %}
+  <button type="submit" class="btn">찾기</button>
+  {% if keep %}<a href="?{% if year %}y={{ year }}{% endif %}{% if mode == 'grid' %}&view=grid{% endif %}">지우기</a>{% endif %}
+  {% if mode == 'list' %}<nav class="seg" aria-label="묶기">
+    <a href="?{% if year %}y={{ year }}&{% endif %}{% if q %}q={{ q|urlencode }}&{% endif %}{% if kind %}kind={{ kind }}{% endif %}"{% if by == 'no' %} class="on"{% endif %} title="NAS 폴더처럼 번호 열 개씩">번호</a>
+    <a href="?{% if year %}y={{ year }}&{% endif %}{% if q %}q={{ q|urlencode }}&{% endif %}{% if kind %}kind={{ kind }}&{% endif %}by=horizon"{% if by == 'horizon' %} class="on"{% endif %} title="phyloserver 의 층준, 0.1 m 구간">층준</a>
+  </nav>{% endif %}
+  {% if by == 'horizon' %}<input type="hidden" name="by" value="horizon">{% endif %}
+  <span class="dim">{{ n_rows }} 슬랩</span>
+  {% if mode == 'list' and groups %}<span style="margin-left:auto"><button type="button" class="btn" id="open-all">모두 펴기</button> <button type="button" class="btn" id="shut-all">모두 접기</button></span>{% endif %}
 </form>
 
-{% if rows %}
-<div class="grid">
-  {% for r in rows %}
-  <a class="card" href="{% url 'slab' r.slab.slab_no %}">
-    {% if r.frame %}<img class="pic" loading="lazy" src="{% frame_url r.frame 400 %}" alt="{{ r.slab.slab_no }}">{% else %}<span class="pic"></span>{% endif %}
-    <span class="t"><b>{{ r.slab.slab_no }}</b>
-      <span class="dim">더미 {{ r.slab.n_stacks }}{% if r.slab.horizon %} · {{ r.slab.horizon }}{% endif %}</span>
-      <span class="taxa">{{ r.taxa|join:", "|default:"—" }}</span></span>
-  </a>
+{% if mode == 'list' %}
+{% if groups %}
+<table class="slabs">
+  <thead><tr>
+    <th>슬랩</th><th class="wide-only">층준</th><th>분류군</th><th class="wide-only">문</th>
+    <th class="n">표본</th><th class="n">빛 묶음</th><th class="n">PTM</th><th class="n">사본</th><th class="n">컷</th><th class="wide-only">처음 촬영</th>
+  </tr></thead>
+  <tbody>
+  {% for g in groups %}
+    <tr class="grp" data-g="{{ g.id }}">
+      <td colspan="4"><span class="tw">▾</span> {{ g.name }}<span class="gsub">슬랩 {{ g.rows|length }}</span></td>
+      <td class="n">{{ g.n_specimens }}</td><td class="n">{{ g.series }}</td>
+      <td class="n{% if not g.ptm %} zero{% endif %}">{{ g.ptm }}</td><td class="n{% if not g.copies %} zero{% endif %}">{{ g.copies }}</td>
+      <td class="n">{{ g.frames }}</td><td class="wide-only"></td>
+    </tr>
+    {% for r in g.rows %}
+    {% if r.folder_head %}<tr class="row fold" data-in="{{ g.id }}"><td colspan="10">{{ r.folder }}</td></tr>{% endif %}
+    <tr class="row" data-in="{{ g.id }}">
+      <td><a class="no" href="{% url 'slab' r.slab.slab_no %}">{{ r.slab.slab_no }}</a></td>
+      <td class="wide-only mono">{{ r.slab.horizon|default:"—" }}</td>
+      <td class="taxa">{{ r.taxa|join:", "|default:"—" }}</td>
+      <td class="wide-only dim">{{ r.phyla|join:", " }}</td>
+      <td class="n{% if not r.n_specimens %} zero{% endif %}">{{ r.n_specimens }}</td>
+      <td class="n{% if not r.series %} zero{% endif %}">{{ r.series }}</td>
+      <td class="n{% if not r.ptm %} zero{% endif %}">{{ r.ptm }}</td>
+      <td class="n{% if not r.copies %} zero{% endif %}">{{ r.copies }}</td>
+      <td class="n">{{ r.frames }}</td>
+      <td class="wide-only dim mono">{{ r.first|date:"Y-m-d"|default:"" }}</td>
+    </tr>
+    {% endfor %}
   {% endfor %}
-</div>
+    <tr class="sum">
+      <td colspan="4">합계 {{ n_rows }} 슬랩</td>
+      <td class="n">{{ sums.n_specimens }}</td><td class="n">{{ sums.series }}</td><td class="n">{{ sums.ptm }}</td>
+      <td class="n">{{ sums.copies }}</td><td class="n">{{ sums.frames }}</td><td class="wide-only"></td>
+    </tr>
+  </tbody>
+</table>
+<script>
+(function () {
+  // 접힘 — 찾기 결과는 모두 편다. 아니면 이 연도에서 펴 둔 것만(처음엔 모두 접힘: 한 연도가 2천 줄이다)
+  var KEY = 'siriopsis.open.{{ by }}.{{ year|default:"all" }}', SEARCH = {% if q %}true{% else %}false{% endif %};
+  var open = {};
+  try { open = JSON.parse(sessionStorage.getItem(KEY) || '{}'); } catch (e) {}
+  var grps = document.querySelectorAll('tr.grp');
+  function set(id, on) {
+    document.querySelector('tr.grp[data-g="' + id + '"]').classList.toggle('shut', !on);
+    document.querySelectorAll('tr.row[data-in="' + id + '"]').forEach(function (r) { r.hidden = !on; });
+    open[id] = on;
+  }
+  function save() { try { sessionStorage.setItem(KEY, JSON.stringify(open)); } catch (e) {} }
+  grps.forEach(function (g) {
+    var id = g.dataset.g;
+    set(id, SEARCH || grps.length === 1 || !!open[id]);
+    g.addEventListener('click', function () { set(id, g.classList.contains('shut')); save(); });
+  });
+  var oa = document.getElementById('open-all'), sa = document.getElementById('shut-all');
+  if (oa) oa.addEventListener('click', function () { grps.forEach(function (g) { set(g.dataset.g, true); }); save(); });
+  if (sa) sa.addEventListener('click', function () { grps.forEach(function (g) { set(g.dataset.g, false); }); save(); });
+})();
+</script>
 {% else %}
 <p class="dim">맞는 슬랩이 없습니다.</p>
 {% endif %}
 
+{% else %}
+{% if rows %}
+<div class="grid">
+  {% for r in rows %}
+  <a class="tile" href="{% url 'slab' r.slab.slab_no %}">
+    {% if r.frame %}<img class="pic" loading="lazy" src="{% frame_url r.frame 400 %}" alt="">{% else %}<span class="pic"></span>{% endif %}
+    <span class="meta"><b>{{ r.slab.slab_no }}</b>
+      <span class="sub">{{ r.slab.horizon|default:"층준 미기록" }} · 표본 {{ r.n_specimens }}</span>
+      <span class="taxa">{{ r.taxa|join:", "|default:"—" }}</span>
+      <span class="tags">{% if r.series %}<span class="tag series">빛 묶음 {{ r.series }}</span>{% endif %}{% if r.ptm %}<span class="tag ptm">PTM {{ r.ptm }}</span>{% endif %}{% if r.copies %}<span class="tag copy">사본 {{ r.copies }}</span>{% endif %}</span>
+    </span>
+  </a>
+  {% endfor %}
+</div>
 {% if page.has_other_pages %}
 <nav class="pager">
-  {% if page.has_previous %}<a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}page={{ page.previous_page_number }}">← 앞</a>{% endif %}
+  {% if page.has_previous %}<a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}{% if year %}y={{ year }}&{% endif %}view=grid&page={{ page.previous_page_number }}">← 앞</a>{% endif %}
   <span class="dim">{{ page.number }} / {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}page={{ page.next_page_number }}">뒤 →</a>{% endif %}
+  {% if page.has_next %}<a href="?{% for k, v in keep.items %}{{ k }}={{ v|urlencode }}&{% endfor %}{% if year %}y={{ year }}&{% endif %}view=grid&page={{ page.next_page_number }}">뒤 →</a>{% endif %}
 </nav>
+{% endif %}
+{% else %}
+<p class="dim">맞는 슬랩이 없습니다.</p>
+{% endif %}
 {% endif %}
 {% endblock %}

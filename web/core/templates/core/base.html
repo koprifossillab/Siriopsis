@@ -4,43 +4,217 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{% endblock %}Siriopsis</title>
+{% comment %}
+  바탕 틀은 DiaRUGA `viewer/templates/viewer/base.html`(v0.37.1)의 모양을 옮겼다 (wetherilli 005) —
+  색 토큰(어둡게가 기본, 밝게), 테마 단추(시스템 → 밝게 → 어둡게), 얇게 붙는 머리줄, 자리 이름 워터마크.
+  **테마는 스타일보다 먼저 정한다** — 뒤에 오면 첫 그림이 어둡게 한 번 그려졌다가 바뀐다(DiaRUGA 와 같은 까닭).
+{% endcomment %}
+<script>
+(function () {
+  var KEY = 'siriopsis.theme', root = document.documentElement,
+      mq = window.matchMedia('(prefers-color-scheme: light)');
+  function saved() {
+    try { var v = localStorage.getItem(KEY); return v === 'light' || v === 'dark' ? v : ''; }
+    catch (e) { return ''; }
+  }
+  function apply() {
+    var pick = saved();
+    root.dataset.theme = pick || (mq.matches ? 'light' : 'dark');
+    root.dataset.themePick = pick || 'system';
+  }
+  apply();
+  if (mq.addEventListener) mq.addEventListener('change', apply);
+  window.siriopsisTheme = {
+    cycle: function () {
+      var next = {system: 'light', light: 'dark', dark: ''}[root.dataset.themePick];
+      try { if (next) localStorage.setItem(KEY, next); else localStorage.removeItem(KEY); }
+      catch (e) { root.dataset.theme = next || (mq.matches ? 'light' : 'dark'); root.dataset.themePick = next || 'system'; return; }
+      apply();
+    }
+  };
+})();
+</script>
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
 <style>
-  :root { --bg: #f6f6f4; --panel: #fff; --fg: #222; --dim: #777; --line: #ddd;
-          --accent: #2b6cb0; --chip: #eef2f7; --view: #1b1b1b; }
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #262b36;
+    --fg: #e6e9ef; --dim: #8b93a3; --accent: #5ac8fa; --warn: #ffb454;
+    --good: #7ee787; --danger: #ff6b6b; --light: #f0b44c;
+    --group-bg: #1d212b; --group-bg-hi: #242936;
+    --envwm-op: .17;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f6f7f9; --panel: #fff; --line: #e0e3e9;
+    --fg: #1a1d23; --dim: #6b7280; --accent: #0b7ec4; --warn: #b45309;
+    --good: #15803d; --danger: #dc2626; --light: #c27c0e;
+    --group-bg: #eaecf1; --group-bg-hi: #e0e3ea;
+    --envwm-op: .14;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+  ::placeholder { color: var(--dim); opacity: .5; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 14px/1.55 ui-sans-serif, system-ui, "Noto Sans KR", sans-serif; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  header { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap;
-           padding: .6rem 1rem; border-bottom: 1px solid var(--line); background: var(--panel); }
-  header .brand { color: inherit; font-weight: 700; }
-  header .sub { color: var(--dim); font-size: .92rem; }
-  header .sub b { color: var(--fg); }
-  header .nav { margin-left: auto; display: flex; gap: .8rem; font-size: .92rem; }
-  .ver { font-size: .8rem; color: #888; }
-  main { padding: 1rem; max-width: 72rem; }
+  header { padding: 11px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+           position: sticky; top: 0; z-index: 10;
+           display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+  header h1 { font-size: 13.5px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  header h1 a { display: inline-flex; align-items: center; gap: 7px; color: inherit; }
+  header h1 a:hover { text-decoration: none; }
+  .logomark { width: 22px; height: 22px; flex: 0 0 auto; display: block; }
+  .wordmark { font-weight: 750; letter-spacing: .3px; }
+  .ver { font-size: 11.5px; color: var(--dim); font-weight: 400; }
+  header .sub { font-size: 13px; color: var(--dim); min-width: 0; }
+  header .sub b { color: var(--fg); font-weight: 650; }
+  header nav { margin-left: auto; display: flex; gap: 14px; font-size: 13px; align-items: center; }
+  .pill { align-self: center; padding: 3px 11px; border-radius: 999px; border: 1px solid var(--line);
+          color: var(--dim); font-size: 12px; white-space: nowrap; }
+  .pill:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+  .themebtn { align-self: center; display: inline-flex; padding: 4px; border: 0; border-radius: 7px;
+              background: none; color: var(--dim); cursor: pointer; }
+  header nav { margin-left: auto; }
+  .themebtn { order: 98; }
+  .themebtn svg { width: 17px; height: 17px; display: none; }
+  .themebtn:hover { color: var(--accent); background: var(--bg); }
+  .gearlink { align-self: center; display: inline-flex; padding: 4px; border-radius: 7px; color: var(--dim); order: 99; margin-left: 4px; }
+  .gearlink svg { width: 17px; height: 17px; display: block; }
+  .gearlink:hover { color: var(--accent); background: var(--bg); }
+  :root[data-theme-pick="system"] .themebtn .ic-system,
+  :root[data-theme-pick="light"] .themebtn .ic-light,
+  :root[data-theme-pick="dark"] .themebtn .ic-dark { display: block; }
+
+  main { padding: 12px 18px 22px; max-width: 1500px; margin: 0 auto; }
   main.wide { max-width: none; }
+  .crumb { font-size: 13px; margin-bottom: 12px; }
+  .pagehead { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+  .pagehead h2 { margin: 0; font-size: 19px; }
   .dim { color: var(--dim); }
-  .mono { font-family: ui-monospace, monospace; font-size: .88em; }
-  .chip { display: inline-block; padding: .1rem .5rem; border-radius: 999px; background: var(--chip);
-          font-size: .8rem; color: var(--fg); white-space: nowrap; }
-  .chip.ptm { background: #fdecc8; }
-  .chip.copy { background: #eee; color: var(--dim); }
-  button, select, input { font: inherit; }
-  .env-label { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-               pointer-events: none; font-size: 8vw; font-weight: 700; color: rgba(200, 0, 0, .12);
-               transform: rotate(-30deg); z-index: 9999; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+  .meta-line { font-size: 12px; color: var(--dim); margin: 0 0 14px; }
+
+  /* 알약 꼬리표 — DiaRUGA 목록의 「합성됨·1개 검출」 자리 */
+  .tag { display: inline-block; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line);
+         font-size: 11.5px; line-height: 19px; color: var(--dim); white-space: nowrap; }
+  .tag.ptm { border-color: color-mix(in srgb, var(--light) 60%, transparent); color: var(--light); }
+  .tag.series { border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--accent); }
+  .tag.prep { border-color: color-mix(in srgb, var(--good) 50%, transparent); color: var(--good); }
+  .tag.copy { border-style: dashed; }
+
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; overflow: hidden;
+          display: block; color: inherit; }
+  .tile:hover { border-color: var(--accent); text-decoration: none; }
+  .tile .pic { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #000; }
+  .tile .meta { display: block; padding: 8px 11px 10px; font-size: 12.5px; line-height: 1.5; }
+  .tile .meta b { display: block; font-size: 13.5px; }
+  .tile .meta .sub { display: block; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .meta .taxa { display: block; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 14px;
+         padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; }
+  input[type=search], select, .btn, button.btn {
+    font: inherit; font-size: 13px; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 7px; padding: 5px 10px; }
+  .btn { cursor: pointer; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+  input[type=search] { min-width: 18rem; }
+
+  .foot { padding: 14px 18px 18px; border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; text-align: center; }
+  .credit span + span::before { content: " · "; }
+  .envwm { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center;
+           pointer-events: none; overflow: hidden; }
+  .envwm span { transform: rotate(-30deg); font-size: min(15vmin, 180px); font-weight: 800; line-height: 1;
+                letter-spacing: .08em; white-space: nowrap; color: var(--danger); opacity: var(--envwm-op); }
 </style>
 {% block head %}{% endblock %}
+{% comment %}
+  대기 화면 (사용자 2026-10-25 — 「GSM 과 DiaRUGA 처럼」). DiaRUGA `base.html`(234·235)의 것을 옮겼다:
+  **탭마다 한 번**(sessionStorage `siriopsis.splash`) — 같은 탭 안에서 화면을 옮길 때마다 붙들면 일이 된다.
+  저장소가 막힌 브라우저에서는 띄우지 않는다(못 적으면 매번 뜬다). `<head>` 에서 `splashing` 을 붙여야 본문이 한 번 그려졌다 덮이는 깜빡임이 없다.
+  로고는 투명 배경 webp 라 **테마 바탕 위에 얹고 테마에 맞는 벌을 고른다** — DiaRUGA 는 GIF 라 바탕색을 박았다.
+  애니메이션이 끝 장면에 닿으면(`splash_ms`) 같은 장면의 정지 그림으로 바꾼다 — webp 는 되풀이된다.
+{% endcomment %}
+<script>
+(function () {
+  try { if (sessionStorage.getItem('siriopsis.splash')) return; } catch (e) { return; }
+  document.documentElement.classList.add('splashing');
+})();
+</script>
+<style>
+  #splash { display: none; }
+  .splashing #splash { display: flex; position: fixed; inset: 0; z-index: 10000; align-items: center; justify-content: center;
+                       background: var(--bg); cursor: pointer; transition: opacity .4s; }
+  #splash.out { opacity: 0; }
+  #splash img { display: block; width: min(640px, 92vw); height: auto; aspect-ratio: 800 / 300; }
+</style>
 </head>
 <body>
+{% block splash %}
+<div id="splash" aria-hidden="true"><img alt="" width="800" height="300"></div>
+<script>
+(function () {
+  var root = document.documentElement, box = document.getElementById('splash');
+  if (!box || !root.classList.contains('splashing')) return;
+  // 띄운 순간 적는다 — 다 보기 전에 화면을 옮겨도 다시 안 뜬다
+  try { sessionStorage.setItem('siriopsis.splash', '1'); } catch (e) {}
+  var on = root.dataset.theme === 'light' ? 'onlight' : 'ondark';
+  var img = box.querySelector('img'), ms = {{ splash_ms|default:0 }},
+      anim = '{% url "splash_asset" "ondark.webp" %}'.replace('ondark', on),
+      still = '{% url "splash_asset" "ondark.png" %}'.replace('ondark', on), done = false;
+  function close() {
+    if (done) return;
+    done = true;
+    box.classList.add('out');
+    setTimeout(function () { root.classList.remove('splashing'); }, 420);
+  }
+  // 누르거나 키를 치면 바로 걷는다
+  box.addEventListener('click', close);
+  document.addEventListener('keydown', close, { once: true });
+  if (!ms || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    img.src = still; setTimeout(close, 700); return;
+  }
+  // 정지 그림을 미리 풀어 둔다 — 바꾸는 순간에 비는 틈이 없게
+  var pre = new Image();
+  pre.src = still;
+  var ready = pre.decode ? pre.decode().catch(function () {}) : Promise.resolve();
+  img.addEventListener('load', function once() {
+    img.removeEventListener('load', once);
+    setTimeout(function () { ready.then(function () { img.src = still; }); }, ms + 100);
+    setTimeout(close, ms + 900);
+  });
+  img.addEventListener('error', close);
+  // 망이 느려 애니메이션이 안 오면 기다리지 않는다
+  setTimeout(function () { if (!img.complete) close(); }, 4000);
+  img.src = anim;
+})();
+</script>
+{% endblock %}
 <header>
-  <a class="brand" href="{% url 'home' %}">Siriopsis</a>
-  {% if image_tag %}<span class="ver">{{ image_tag }}</span>{% endif %}
+  <h1><a href="{% url 'home' %}" title="Siriopsis — 시리우스 파셋 표본 뷰어">
+    {% comment %} 마크: 할키에리아 골편 여덟 장이 이룬 시리우스의 반짝임 (사용자 2026-10-25, docs/assets/logo/). 후광은 21px 에서 얼룩이 되어 뺐다 {% endcomment %}
+    <svg class="logomark" viewBox="20 20 472 472" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sp-blade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef4ff"/><stop offset="1" stop-color="#bcd3f0"/></linearGradient></defs><g><g transform="translate(256,256) rotate(-0.00) scale(1.0000)"><g transform="rotate(0) scale(1.0000)" opacity="1.000"><path d="M 0 0 C 30.6 -51.5 44.4 -144.2 20.6 -206.0 C 3.6 -148.3 -30.6 -61.8 0 0 Z" fill="url(#sp-blade)" stroke="#46566c" stroke-width="5" stroke-linejoin="round"/><path d="M 0 -16.5 Q 8.2 -113.3 19.0 -189.5" fill="none" stroke="#6f8199" stroke-width="3.1" stroke-linecap="round" opacity="0.55"/></g><g transform="rotate(45) scale(1.0000)" opacity="1.000"><path d="M 0 0 C 18.0 -26.0 28.6 -72.8 14.6 -104.0 C 4.6 -74.9 -18.0 -31.2 0 0 Z" fill="#6f8199" stroke="#46566c" stroke-width="5" stroke-linejoin="round"/></g><g transform="rotate(90) scale(1.0000)" opacity="1.000"><path d="M 0 0 C 30.6 -51.5 44.4 -144.2 20.6 -206.0 C 3.6 -148.3 -30.6 -61.8 0 0 Z" fill="url(#sp-blade)" stroke="#46566c" stroke-width="5" stroke-linejoin="round"/><path d="M 0 -16.5 Q 8.2 -113.3 19.0 -189.5" fill="none" stroke="#6f8199" stroke-width="3.1" stroke-linecap="round" opacity="0.55"/></g><g transform="rotate(135) scale(1.0000)" opacity="1.000"><path d="M 0 0 C 18.0 -26.0 28.6 -72.8 14.6 -104.0 C 4.6 -74.9 -18.0 -31.2 0 0 Z" fill="#6f8199" stroke="#46566c" stroke-width="5" stroke-linejoin="round"/></g><g transform="rotate(180) scale(1.0000)" opacity="1.000"><path d="M 0 0 C 30.6 -51.5 44.4 -144.2 20.6 -206.0 C 3.6 -148.3 -30.6 -61.8 0 0 Z" fill="url(#sp-blade)" stroke="#46566c" stroke-width="5" stroke-linejoin="round"/><path d="M 0 -16.5 Q 8.2 -113.3 19.0 -189.5" fill="none" stroke="#6f8199" stroke-width="3.1" stroke-linecap="round" opacity="0.55"/></g><g transform="rotate(225) scale(1.0000)" opacity="1.000"><path d="M 0 0 C 18.0 -26.0 28.6 -72.8 14.6 -104.0 C 4.6 -74.9 -18.0 -31.2 0 0 Z" fill="#6f8199" stroke="#46566c" stroke-width="5" stroke-linejoin="round"/></g><g transform="rotate(270) scale(1.0000)" opacity="1.000"><path d="M 0 0 C 30.6 -51.5 44.4 -144.2 20.6 -206.0 C 3.6 -148.3 -30.6 -61.8 0 0 Z" fill="url(#sp-blade)" stroke="#46566c" stroke-width="5" stroke-linejoin="round"/><path d="M 0 -16.5 Q 8.2 -113.3 19.0 -189.5" fill="none" stroke="#6f8199" stroke-width="3.1" stroke-linecap="round" opacity="0.55"/></g><g transform="rotate(315) scale(1.0000)" opacity="1.000"><path d="M 0 0 C 18.0 -26.0 28.6 -72.8 14.6 -104.0 C 4.6 -74.9 -18.0 -31.2 0 0 Z" fill="#6f8199" stroke="#46566c" stroke-width="5" stroke-linejoin="round"/></g><circle r="11.00" fill="#8fd8ff"/></g></g></svg>
+    <span class="wordmark">Siriopsis</span></a>
+    {% if image_tag %}<span class="ver">{{ image_tag }}</span>{% endif %}</h1>
   <span class="sub">{% block subtitle %}{% endblock %}</span>
-  <span class="nav">{% block nav %}{% endblock %}</span>
+  {% block navwrap %}<nav>{% block nav %}{% endblock %}</nav>{% endblock %}
+  <a class="gearlink" href="{% url 'system' %}" title="설정 — 판 이력·자료 현황">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></a>
+  <button type="button" class="themebtn" onclick="siriopsisTheme.cycle()" title="테마 — 시스템 · 밝게 · 어둡게">
+    <svg class="ic-system" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor"/></svg>
+    <svg class="ic-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
+    <svg class="ic-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10Z"/></svg>
+  </button>
 </header>
 <main{% block mainclass %}{% endblock %}>{% block content %}{% endblock %}</main>
-{% if env_label %}<div class="env-label">{{ env_label }}</div>{% endif %}
+{% comment %}
+  바닥글 — 판·자료 출처·만든이·라이선스 (.guides/branding.md §2·§4, 사용자 2026-10-25).
+  더미 화면은 사진이 창 높이를 다 쓰므로 바닥글을 비우고 오른쪽 칸에 같은 줄을 둔다(`credit` 블록).
+{% endcomment %}
+{% block footer %}<footer class="foot">{% include "core/_credit.html" %}</footer>{% endblock %}
+{% if env_label %}<div class="envwm" aria-hidden="true"><span>{{ env_label }}</span></div>{% endif %}
 </body>
 </html>

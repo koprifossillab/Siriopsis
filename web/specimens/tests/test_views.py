@@ -8,10 +8,27 @@ from django.urls import reverse
 from PIL import Image
 
 from core.tests.base import SafeTestCase
-from specimens import thumbs
+from specimens import browse, thumbs
 from specimens.models import Frame, Slab, Specimen, Stack
 
 from .fixtures import make_jpg
+
+
+class BandTest(SafeTestCase):
+    def test_horizon_bands(self):
+        # phyloserver 의 층준은 손으로 적은 글자다 — 고치지 않고 묶기만
+        self.assertEqual(browse.band_of("6.15-6.2")[1], "6.1–6.2 m")
+        self.assertEqual(browse.band_of("6.2~6.3")[1], "6.2–6.3 m")
+        self.assertEqual(browse.band_of("~7.3")[1], "7.3–7.4 m")
+        self.assertEqual(browse.band_of("scree")[0], browse.band_of("SCREE")[0])
+        self.assertEqual(browse.band_of("")[0], browse.BLANK)
+        self.assertEqual(browse.band_of("?")[0], browse.UNKNOWN)
+        self.assertLess(browse.band_of("5.9")[0], browse.band_of("6.0")[0])
+
+    def test_folder_names_follow_nas(self):
+        s = Slab(slab_no="SP-2016-0110", year=2016)
+        self.assertEqual(browse.folder_of(s), "SP-2016(101~110)")
+        self.assertEqual(browse.block_of(s)[1], "101~200")
 
 
 class ViewerTest(SafeTestCase):
@@ -52,11 +69,15 @@ class ViewerTest(SafeTestCase):
 
     def test_home_lists_slab_once_and_finds_taxon(self):
         r = self.client.get(reverse("home"))
-        self.assertContains(r, 'class="card"', count=1)            # 표본·더미가 여럿이어도 슬랩은 한 번
-        self.assertContains(r, "더미 2")                            # 사본은 세지 않는다
+        self.assertContains(r, 'class="row" data-in', count=1)       # 표본·더미가 여럿이어도 슬랩은 한 줄
+        self.assertContains(r, "SP-2022(131~140)")                    # NAS 의 열 개 폴더 이름 꼴
+        self.assertEqual(r.context["sums"]["series"], 1)              # 사본은 묶음 수에 넣지 않는다
+        self.assertEqual(r.context["sums"]["copies"], 1)
         self.assertContains(self.client.get(reverse("home"), {"q": "halkieria"}), "SP-2022-0131")
         self.assertNotContains(self.client.get(reverse("home"), {"q": "Anomalocaris"}), "SP-2022-0131")
         self.assertContains(self.client.get(reverse("home"), {"kind": "ptm"}), "SP-2022-0131")
+        self.assertContains(self.client.get(reverse("home"), {"view": "grid"}), 'class="tile"', count=1)
+        self.assertContains(self.client.get(reverse("home"), {"y": "2022"}), "SP-2022-0131")
 
     def test_slab_groups_by_specimen_and_loose(self):
         r = self.client.get(reverse("slab", args=["SP-2022-0131"]))
@@ -71,7 +92,7 @@ class ViewerTest(SafeTestCase):
         self.assertContains(r, 'id="pad"')
         r = self.client.get(reverse("stack", args=[self.series.id]))
         self.assertNotContains(r, 'id="pad"')
-        self.assertContains(r, "같은 묶음 2벌")
+        self.assertContains(r, "2벌")
         self.assertContains(r, reverse("stack", args=[self.copy.id]))
         # 사본에서 열어도 같은 줄이 정본을 가리킨다
         r = self.client.get(reverse("stack", args=[self.copy.id]))

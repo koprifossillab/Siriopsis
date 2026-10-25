@@ -1,0 +1,85 @@
+{% extends "core/base.html" %}
+{% block title %}설정 — {% endblock %}
+{% comment %}
+  설정 화면 (사용자 2026-10-25 — 「오른쪽 위에 설정 버튼, 판 이력 같은 것들」). 지금은 읽기만 한다.
+  판 이력은 CHANGELOG.md 를 그대로 읽는다(`core.views.changelog`) — 적는 곳을 둘로 만들지 않는다.
+{% endcomment %}
+{% block subtitle %}<b>설정</b>{% endblock %}
+{% block head %}
+<style>
+  .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); margin-bottom: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 10px; font-size: 14px; }
+  .stat-row { display: flex; gap: 18px; flex-wrap: wrap; }
+  .stat b { display: block; font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11px; color: var(--dim); letter-spacing: .3px; }
+  .card dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 12.5px; }
+  .card dt { color: var(--dim); }
+  .card dd { margin: 0; overflow-wrap: anywhere; }
+  h2.sec { font-size: 15px; margin: 22px 0 8px; }
+  table.log { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--panel);
+              border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .log th { text-align: left; font-size: 11px; color: var(--dim); font-weight: 650; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  .log td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .log tr:last-child td { border-bottom: 0; }
+  .log td.v { white-space: nowrap; font-weight: 650; font-family: ui-monospace, monospace; }
+  .log td.d { white-space: nowrap; color: var(--dim); font-family: ui-monospace, monospace; font-size: 12px; }
+  .log tr.now td.v { color: var(--accent); }
+  .log code { font-size: 12px; background: var(--group-bg); padding: 0 4px; border-radius: 4px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="pagehead"><h2>설정</h2><span class="dim">읽기만 — 바꿀 설정은 아직 없다</span></div>
+
+<div class="cards">
+  <div class="card">
+    <h3>판</h3>
+    <dl>
+      <dt>지금</dt><dd class="mono">{{ image_tag|default:"(판 없음 — 개발 서버)" }}</dd>
+      <dt>저장소</dt><dd><a href="{{ repo }}" target="_blank" rel="noopener">koprifossillab/Siriopsis</a></dd>
+      <dt>상태</dt><dd><a href="{% url 'healthz' %}">/healthz</a></dd>
+    </dl>
+  </div>
+  <div class="card">
+    <h3>만든 곳</h3>
+    <dl>
+      <dt>자료 출처</dt><dd>극지연구소 고생물진화연구실</dd>
+      <dt>만든이</dt><dd>극지연구소 이승찬</dd>
+      <dt>라이선스</dt><dd>AGPL-3.0 (코드)</dd>
+    </dl>
+  </div>
+  <div class="card">
+    <h3>자료</h3>
+    <div class="stat-row">
+      <div class="stat"><b>{{ stats.slabs }}</b><span>슬랩</span></div>
+      <div class="stat"><b>{{ stats.specimens }}</b><span>표본</span></div>
+      <div class="stat"><b>{{ stats.series }}</b><span>빛 묶음</span></div>
+      <div class="stat"><b>{{ stats.ptm }}</b><span>PTM</span></div>
+      <div class="stat"><b>{{ stats.copies }}</b><span>사본</span></div>
+      <div class="stat"><b>{{ stats.frames }}</b><span>컷</span></div>
+    </div>
+    <p class="dim" style="font-size:12px;margin:10px 0 0">
+      {% for y, n in years %}SP-{{ y }} {{ n }}{% if not forloop.last %} · {% endif %}{% endfor %}<br>
+      phyloserver 목록에 있는 슬랩 {{ stats.slabs_catalog }} · 분류군 있는 표본 {{ stats.taxa }}
+      {% if stats.synced %}· 분류 정보 {{ stats.synced|date:"Y-m-d H:i" }}{% endif %}</p>
+  </div>
+  <div class="card">
+    <h3>자리</h3>
+    <dl>{% for k, v in places %}<dt>{{ k }}</dt><dd class="mono">{{ v }}</dd>{% endfor %}</dl>
+  </div>
+</div>
+
+<h2 class="sec">판 이력</h2>
+{% if log %}
+<table class="log">
+  <thead><tr><th>판</th><th>날짜</th><th>무엇</th></tr></thead>
+  <tbody>
+  {% for r in log %}
+    <tr{% if r.ver == image_tag %} class="now"{% endif %}><td class="v">{{ r.ver }}</td><td class="d">{{ r.date }}</td><td>{{ r.what }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="dim">CHANGELOG.md 를 읽지 못했다.</p>
+{% endif %}
+{% endblock %}
