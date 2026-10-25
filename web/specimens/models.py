@@ -209,3 +209,36 @@ class Counterpart(models.Model):
 
     class Meta:
         ordering = ["slab_no", "letter", "other_slab_no"]
+
+
+class Scale(models.Model):
+    """더미의 배율 — 빛 묶음 1 번 컷의 자에서 잰 mm/px (wetherilli 010, `pipeline/ruler_scale.py` → `import_scales`).
+
+    **원본 화소 기준이고, 잰 컷과 크기가 같은 컷에만 맞다** — 맞춤 전에는 같은 묶음의 크기가 같은 컷을 같은 배율로 본다
+    (사용자). 크기가 다른 컷(확대·딴 카메라)에는 배율이 없다. 잰 컷은 Frame 이 아니라 **경로와 크기로** 적는다 —
+    반입은 컷이 바뀐 묶음의 Frame 행을 다시 만든다(`lightseries.save_series`).
+
+    `status` 가 `ok` 일 때만 `mm_per_px` 가 있다. 믿기 어려운 값(`doubt`)·자를 못 찾은 것(`none`)은 비워 두고 까닭을 `note` 에.
+    반입으로 다시 만들 수 있는 값이다 — 사람의 손(`edited_at`)으로 치지 않는다.
+    """
+    class Status(models.TextChoices):
+        OK = "ok", "잼"
+        DOUBT = "doubt", "믿기 어려움"
+        NONE = "none", "자를 못 찾음"
+
+    stack = models.OneToOneField(Stack, on_delete=models.CASCADE, related_name="scale")
+    status = models.CharField(max_length=8, choices=Status.choices)
+    mm_per_px = models.FloatField(null=True, blank=True)
+    frame_path = models.CharField(max_length=500)
+    width = models.PositiveIntegerField(default=0)
+    height = models.PositiveIntegerField(default=0)
+    ticks = models.PositiveSmallIntegerField(default=0)     # 맞춘 눈금 수
+    note = models.CharField(max_length=300, blank=True)
+    measured_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.stack_id} · {self.status} · {self.mm_per_px}"
+
+    def fits(self, width, height):
+        """이 크기의 컷에 이 배율을 쓸 수 있나."""
+        return self.mm_per_px is not None and (width, height) == (self.width, self.height)

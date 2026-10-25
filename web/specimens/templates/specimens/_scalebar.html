@@ -1,0 +1,384 @@
+{% comment %}
+  스케일바 모양 (wetherilli 010). **옮겨 온 것이다** — DiaRUGA v0.37.1 `web/viewer/templates/viewer/_detview_js.html` 의
+  `window.DiaRUGA.sb`(스케일바 모양 214 — 다섯 모양·색·자리·크기, 더블클릭하면 고르는 창, 설정은 localStorage)와
+  `web/viewer/templates/viewer/base.html` 의 `.scalebar`·`.sbdlg` CSS.
+
+  고친 것: 단위가 µm 이 아니라 **mm**(1 mm 아래는 µm 로 적는다) · 설정 열쇠 `siriopsis.scalebar` · 이벤트 `siriopsis:scalebar` ·
+  내보내기 창이 없어 그 자리를 뺐다 · 자리는 이 화면의 도구(오른쪽 위 「보기」, 왼쪽 아래 배율)를 비켜 선다.
+{% endcomment %}
+<style>
+  .detview .scalebar { position: absolute; right: 10px; bottom: 10px; z-index: 5; line-height: 0; cursor: pointer; }
+  .detview .scalebar[hidden] { display: none; }
+  .detview .scalebar canvas { display: block; }
+  .detview .scalebar.pos-bl { right: auto; left: 10px; bottom: 38px; }
+  .detview .scalebar.pos-bc { right: auto; left: 50%; bottom: 10px; transform: translateX(-50%); }
+  .detview .scalebar.pos-tl { right: auto; left: 10px; bottom: auto; top: 10px; }
+  .detview .scalebar.pos-tc { right: auto; left: 50%; bottom: auto; top: 40px; transform: translateX(-50%); }
+  .detview .scalebar.pos-tr { right: 72px; bottom: auto; top: 10px; }
+
+  .sbdlg { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center;
+           background: rgba(0,0,0,.45); padding: 16px; }
+  .sbdlg[hidden] { display: none; }
+  .sbdlg .sbbox { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 11px;
+                  box-shadow: 0 12px 40px rgba(0,0,0,.5); width: min(620px, 100%); max-height: calc(100vh - 32px); overflow: auto;
+                  padding: 14px 16px 12px; font-size: 13px; line-height: 1.45; }
+  .sbdlg h3 { margin: 0 0 10px; font-size: 15px; }
+  .sbdlg .sbrow { margin: 11px 0 0; }
+  .sbdlg .sbrow > .k { display: block; font-size: 12px; color: var(--dim); margin-bottom: 5px; }
+  .sbdlg .sbstyles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 7px; }
+  .sbdlg .sbstyles button { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 5px; font: inherit;
+                            font-size: 12px; color: var(--fg); cursor: pointer; background: none; border: 1px solid var(--line); border-radius: 8px; }
+  /* 미리보기 칸의 바탕만 사진을 흉내 낸 색으로 박는다 — 거기는 테마가 아니라 사진이다 */
+  .sbdlg .sbstyles canvas { display: block; width: 100%; height: 58px; border-radius: 5px;
+                            background: linear-gradient(135deg, #4a4f52, #1d2023 60%, #77736a); }
+  .sbdlg .sbchips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sbdlg .sbchips button, .sbdlg .sbfoot button { font: inherit; font-size: 12.5px; padding: 4px 10px; cursor: pointer;
+                                                  background: none; color: var(--fg); border: 1px solid var(--line); border-radius: 7px; }
+  .sbdlg .sbchips .sw { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px;
+                        margin-right: 5px; border: 1px solid var(--dim); }
+  .sbdlg .sbpos { display: grid; grid-template-columns: repeat(3, auto); gap: 5px; justify-content: start; }
+  .sbdlg .sbstyles button:hover, .sbdlg .sbchips button:hover, .sbdlg .sbfoot button:hover { border-color: var(--accent); }
+  .sbdlg .sbstyles button.on, .sbdlg .sbchips button.on { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .sbdlg label.chk { display: inline-flex; align-items: center; gap: 5px; margin-right: 14px; cursor: pointer; }
+  .sbdlg .sbnote { font-size: 12px; color: var(--dim); margin-top: 10px; }
+  .sbdlg .sbfoot { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+  .sbdlg .sbfoot .sp { flex: 1 1 auto; }
+  .sbdlg .sbfoot button.go { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+</style>
+<script>
+/* --- 스케일바 모양 (DiaRUGA 214 에서) ---------------------------------------
+
+   **그리는 함수가 하나다** — 화면의 스케일바도 고르는 창의 미리보기도 `layout()` 이 그린다.
+   치수는 전부 `u` 배다(크기 배율). **설정은 브라우저에만 둔다**(`siriopsis.scalebar`) — 보는 방식이지 자료가 아니다. */
+window.Siriopsis = window.Siriopsis || {};
+window.Siriopsis.sb = window.Siriopsis.sb || (function () {
+  var KEY = 'siriopsis.scalebar';
+  var DEF = { style: 'box', color: 'white', pos: 'br', size: 'm', label: true };
+  var STYLES = [
+    { key: 'box', name: '상자', note: '어두운 상자에 막대' },
+    { key: 'plain', name: '도판식', note: '막대 위에 숫자' },
+    { key: 'ticks', name: '끝 눈금', note: '양 끝을 세운 선' },
+    { key: 'ruler', name: '눈금자', note: '0 · 가운데 · 끝' },
+    { key: 'checker', name: '흑백 칸', note: '지도식 교차 막대' }
+  ];
+  var COLORS = [
+    { key: 'white', name: '흰색', fg: '#ffffff' },
+    { key: 'black', name: '검정', fg: '#000000' },
+    { key: 'yellow', name: '노랑', fg: '#ffd23f' },
+    { key: 'cyan', name: '하늘', fg: '#5ac8fa' },
+    { key: 'red', name: '빨강', fg: '#ff5f5f' }
+  ];
+  var POS = [
+    { key: 'tl', name: '왼쪽 위' }, { key: 'tc', name: '가운데 위' }, { key: 'tr', name: '오른쪽 위' },
+    { key: 'bl', name: '왼쪽 아래' }, { key: 'bc', name: '가운데 아래' }, { key: 'br', name: '오른쪽 아래' }
+  ];
+  var SIZES = [
+    { key: 's', name: '작게', f: 0.8 }, { key: 'm', name: '보통', f: 1 },
+    { key: 'l', name: '크게', f: 1.35 }, { key: 'xl', name: '아주 크게', f: 1.8 }
+  ];
+  function pick(list, k) {
+    for (var i = 0; i < list.length; i++) if (list[i].key === k) return list[i];
+    return null;
+  }
+  // 모르는 값은 기본값으로 — 판이 바뀌어 모양 하나가 빠져도 화면이 안 죽는다
+  function read() {
+    var v = {};
+    try { v = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { v = {}; }
+    return {
+      style: pick(STYLES, v.style) ? v.style : DEF.style,
+      color: pick(COLORS, v.color) ? v.color : DEF.color,
+      pos: pick(POS, v.pos) ? v.pos : DEF.pos,
+      size: pick(SIZES, v.size) ? v.size : DEF.size,
+      label: v.label === false ? false : true
+    };
+  }
+  function save(o) {
+    try { localStorage.setItem(KEY, JSON.stringify(o)); }
+    catch (e) { /* 사생활 모드 — 바뀌기는 하고 기억만 안 된다 */ }
+    window.dispatchEvent(new CustomEvent('siriopsis:scalebar'));
+  }
+  function sizeF(o) { return (pick(SIZES, o.size) || SIZES[1]).f; }
+  function fgOf(o) { return (pick(COLORS, o.color) || COLORS[0]).fg; }
+
+  // 1·2·5 계열로 떨어뜨린다 — 눈금이 읽기 좋은 값이어야 한다
+  function niceLength(v) {
+    var e = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+    var m = v / e;
+    return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * e;
+  }
+  function fmtNum(v) {
+    return v < 1 ? String(+v.toFixed(2)) : v < 10 ? String(+v.toFixed(1)) : String(Math.round(v));
+  }
+  // mm → 적을 수와 단위. 1 mm 아래는 µm 로 (0.5 mm 보다 500 µm 이 읽기 쉽다)
+  function unitOf(mm) { return mm < 1 ? { v: mm * 1000, u: ' µm' } : { v: mm, u: ' mm' }; }
+  function fmtLen(mm) { var x = unitOf(mm); return fmtNum(x.v) + x.u; }
+  // 눈금자·흑백 칸을 몇 칸으로 나누나. 10 은 다섯 칸(2씩), 20 은 네 칸(5씩), 50 은 다섯 칸(10씩)
+  function divisions(v) {
+    var e = Math.pow(10, Math.floor(Math.log(v) / Math.LN10 + 1e-9));
+    var m = Math.round(v / e);
+    return m === 2 ? 4 : 5;
+  }
+  // 밝은 색 위에는 검은 테두리, 검정 위에는 흰 테두리 — 사진은 어디든 밝을 수 있다
+  function isDark(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) < 110;
+  }
+  var MONO = 'ui-monospace, "SF Mono", Menlo, monospace';
+  var SANS = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+  function rrect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  /* 모양 하나를 잰다. 돌려주는 `paint(x, y)` 가 (x, y) 를 왼쪽 위로 그린다.
+     o = { style, fg, u, bar(막대 길이 px), mm(막대가 뜻하는 mm), label(bool) } */
+  function layout(ctx, o) {
+    var u = o.u, bar = Math.max(1, o.bar), fg = o.fg;
+    var dark = isDark(fg);
+    var halo = dark ? 'rgba(255,255,255,.85)' : 'rgba(0,0,0,.78)';
+    var txt = fmtLen(o.mm);
+    function text(font, s, x, y, align) {
+      ctx.font = font;
+      ctx.textAlign = align || 'center';
+      ctx.textBaseline = 'top';
+      ctx.lineJoin = 'round';
+      if (o.style !== 'box') { ctx.strokeStyle = halo; ctx.lineWidth = 3 * u; ctx.strokeText(s, x, y); }
+      ctx.fillStyle = fg;
+      ctx.fillText(s, x, y);
+    }
+    function tw(font, s) { ctx.font = font; return ctx.measureText(s).width; }
+
+    if (o.style === 'plain') {
+      var fP = '600 ' + (13 * u) + 'px ' + SANS;
+      var pad = 3 * u, th = o.label ? 14 * u : 0, gap = o.label ? 3 * u : 0, bh = 5 * u;
+      var w = Math.max(bar, o.label ? tw(fP, txt) : 0) + 2 * pad;
+      var h = pad + th + gap + bh + pad;
+      return { w: w, h: h, paint: function (x, y) {
+        var bx = x + (w - bar) / 2, by = y + pad + th + gap;
+        ctx.fillStyle = halo;
+        ctx.fillRect(bx - 1.2 * u, by - 1.2 * u, bar + 2.4 * u, bh + 2.4 * u);
+        ctx.fillStyle = fg;
+        ctx.fillRect(bx, by, bar, bh);
+        if (o.label) text(fP, txt, x + w / 2, y + pad);
+      } };
+    }
+    if (o.style === 'ticks') {
+      var fT = '600 ' + (12 * u) + 'px ' + SANS;
+      var padT = 3 * u, thT = o.label ? 13 * u : 0, gapT = o.label ? 3 * u : 0;
+      var tk = 11 * u, lw = 2 * u;
+      var wT = Math.max(bar + lw, o.label ? tw(fT, txt) : 0) + 2 * padT;
+      var hT = padT + thT + gapT + tk + padT;
+      return { w: wT, h: hT, paint: function (x, y) {
+        var x0 = x + (wT - bar) / 2, x1 = x0 + bar;
+        var y0 = y + padT + thT + gapT, ym = y0 + tk / 2;
+        function path() {
+          ctx.beginPath();
+          ctx.moveTo(x0, y0); ctx.lineTo(x0, y0 + tk);
+          ctx.moveTo(x1, y0); ctx.lineTo(x1, y0 + tk);
+          ctx.moveTo(x0, ym); ctx.lineTo(x1, ym);
+        }
+        ctx.lineCap = 'square';
+        path(); ctx.strokeStyle = halo; ctx.lineWidth = lw + 2.4 * u; ctx.stroke();
+        path(); ctx.strokeStyle = fg; ctx.lineWidth = lw; ctx.stroke();
+        if (o.label) text(fT, txt, x + wT / 2, y + padT);
+      } };
+    }
+    if (o.style === 'ruler' || o.style === 'checker') {
+      var un = unitOf(o.mm);
+      var n = divisions(un.v);
+      var fR = '600 ' + (11 * u) + 'px ' + SANS;
+      var padR = 4 * u, thR = o.label ? 12 * u : 0, gapR = o.label ? 3 * u : 0;
+      // 숫자는 눈금 위에 가운데로 앉으므로 막대 밖으로 비어져 나간다 — 그만큼 넓힌다
+      var endS = o.style === 'ruler' ? fmtNum(un.v) : txt;
+      var unitS = o.style === 'ruler' ? un.u : '';
+      var leftOver = 0, rightOver = 0;
+      if (o.label) {
+        if (o.style === 'ruler') {
+          leftOver = tw(fR, '0') / 2;
+          rightOver = tw(fR, endS) / 2 + tw(fR, unitS);
+        } else {
+          var need = tw(fR, '0') + tw(fR, endS) + 10 * u;
+          if (need > bar) rightOver = need - bar;
+        }
+      }
+      var wR = padR + leftOver + bar + rightOver + padR;
+      var bodyH = o.style === 'ruler' ? 10 * u : 7 * u;
+      var hR = padR + thR + gapR + bodyH + padR;
+      return { w: wR, h: hR, paint: function (x, y) {
+        var x0 = x + padR + leftOver, x1 = x0 + bar;
+        var yb = y + padR + thR + gapR;
+        if (o.style === 'ruler') {
+          var base = yb + bodyH, lwR = 1.6 * u;
+          var path = function () {
+            ctx.beginPath();
+            ctx.moveTo(x0, base); ctx.lineTo(x1, base);
+            for (var i = 0; i <= n; i++) {
+              var xi = x0 + bar * i / n;
+              var major = (i === 0 || i === n || (n % 2 === 0 && i === n / 2));
+              ctx.moveTo(xi, base); ctx.lineTo(xi, base - (major ? bodyH : bodyH * 0.55));
+            }
+          };
+          ctx.lineCap = 'square';
+          path(); ctx.strokeStyle = halo; ctx.lineWidth = lwR + 2.4 * u; ctx.stroke();
+          path(); ctx.strokeStyle = fg; ctx.lineWidth = lwR; ctx.stroke();
+          if (o.label) {
+            var ty = y + padR;
+            text(fR, '0', x0, ty);
+            if (n % 2 === 0) text(fR, fmtNum(un.v / 2), x0 + bar / 2, ty);
+            text(fR, endS, x1, ty);
+            text(fR, unitS, x1 + tw(fR, endS) / 2, ty, 'left');
+          }
+        } else {
+          var alt = dark ? '#ffffff' : '#000000';
+          for (var j = 0; j < n; j++) {
+            ctx.fillStyle = (j % 2 === 0) ? fg : alt;
+            ctx.fillRect(x0 + bar * j / n, yb, bar / n + 0.5, bodyH);
+          }
+          ctx.strokeStyle = halo; ctx.lineWidth = 1.2 * u;
+          ctx.strokeRect(x0, yb, bar, bodyH);
+          if (o.label) {
+            text(fR, '0', x0, y + padR, 'left');
+            text(fR, endS, x1 + rightOver, y + padR, 'right');
+          }
+        }
+      } };
+    }
+    // box — 어두운 상자에 막대, 아래 숫자
+    var fB = (11 * u) + 'px ' + MONO;
+    var bw = Math.max(bar, 20 * u);
+    var wB = Math.max(bw, o.label ? tw(fB, txt) : 0) + 18 * u;
+    var hB = 6 * u + 4 * u + (o.label ? 4 * u + 12 * u : 0) + 5 * u;
+    return { w: wB, h: hB, paint: function (x, y) {
+      rrect(ctx, x, y, wB, hB, 6 * u);
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : 'rgba(0,0,0,.62)';
+      ctx.fill();
+      ctx.fillStyle = fg;
+      rrect(ctx, x + (wB - bw) / 2, y + 6 * u, bw, 4 * u, 1 * u);
+      ctx.fill();
+      if (o.label) text(fB, txt, x + wB / 2, y + 14 * u);
+    } };
+  }
+
+  /* 캔버스 요소 하나에 그린다. `box` 가 있으면 그 폭·높이 안 가운데에, 없으면 캔버스를 모양 크기로 맞춘다. */
+  function paintInto(cv, o, box) {
+    var dpr = window.devicePixelRatio || 1;
+    var ctx = cv.getContext('2d');
+    var L = layout(ctx, o);
+    var cw = box ? box.w : Math.ceil(L.w), ch = box ? box.h : Math.ceil(L.h);
+    cv.width = Math.max(1, Math.round(cw * dpr));
+    cv.height = Math.max(1, Math.round(ch * dpr));
+    if (!box) { cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
+    L = layout(ctx, o);                 // 크기를 바꾸면 상태가 지워진다 — 다시 잰다
+    L.paint(Math.round((cw - L.w) / 2), Math.round((ch - L.h) / 2));
+  }
+
+  // --- 고르기 창 (문서에 하나) ---------------------------------------------
+  var dlg = null;
+  function el(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+  function openPicker() {
+    if (!dlg) {
+      dlg = el('div', 'sbdlg');
+      dlg.setAttribute('role', 'dialog');
+      dlg.setAttribute('aria-label', '스케일바 모양');
+      var box = el('div', 'sbbox');
+      box.appendChild(el('h3', null, '스케일바 모양'));
+      var r1 = el('div', 'sbrow'); r1.appendChild(el('span', 'k', '모양'));
+      var st = el('div', 'sbstyles');
+      STYLES.forEach(function (s) {
+        var b = el('button'); b.type = 'button'; b.dataset.style = s.key; b.title = s.note;
+        b.appendChild(el('canvas'));
+        b.appendChild(el('span', null, s.name));
+        st.appendChild(b);
+      });
+      r1.appendChild(st); box.appendChild(r1);
+      function chips(label, list, attr, extra) {
+        var r = el('div', 'sbrow'); r.appendChild(el('span', 'k', label));
+        var c = el('div', 'sbchips' + (extra ? ' ' + extra : ''));
+        list.forEach(function (it) {
+          var b = el('button'); b.type = 'button'; b.dataset[attr] = it.key;
+          if (it.fg) { var sw = el('span', 'sw'); sw.style.background = it.fg; b.appendChild(sw); }
+          b.appendChild(document.createTextNode(it.name));
+          c.appendChild(b);
+        });
+        r.appendChild(c); box.appendChild(r);
+      }
+      chips('색', COLORS, 'color');
+      chips('자리', POS, 'pos', 'sbpos');
+      chips('크기', SIZES, 'size');
+      var r5 = el('div', 'sbrow');
+      var lab = el('label', 'chk'); var cb = el('input'); cb.type = 'checkbox'; cb.dataset.k = 'label';
+      lab.appendChild(cb); lab.appendChild(document.createTextNode('숫자(mm) 보이기'));
+      r5.appendChild(lab); box.appendChild(r5);
+      box.appendChild(el('div', 'sbnote',
+        '길이는 배율에 맞춰 1·2·5 단위로 저절로 정해집니다. 이 브라우저에만 기억됩니다. ' +
+        '배율은 빛 묶음 1 번 컷의 자에서 잰 것이라, 크기가 다른 컷에는 스케일바가 나오지 않습니다.'));
+      var foot = el('div', 'sbfoot');
+      var rst = el('button', null, '처음 모양으로'); rst.type = 'button'; rst.dataset.act = 'reset';
+      var cls = el('button', 'go', '닫기'); cls.type = 'button'; cls.dataset.act = 'close';
+      foot.appendChild(rst); foot.appendChild(el('span', 'sp')); foot.appendChild(cls);
+      box.appendChild(foot);
+      dlg.appendChild(box);
+      document.body.appendChild(dlg);
+      dlg.addEventListener('click', function (e) {
+        if (e.target === dlg) { closePicker(); return; }
+        var b = e.target.closest('button');
+        if (!b) return;
+        var o = read();
+        if (b.dataset.style) o.style = b.dataset.style;
+        else if (b.dataset.color) o.color = b.dataset.color;
+        else if (b.dataset.pos) o.pos = b.dataset.pos;
+        else if (b.dataset.size) o.size = b.dataset.size;
+        else if (b.dataset.act === 'reset') o = JSON.parse(JSON.stringify(DEF));
+        else if (b.dataset.act === 'close') { closePicker(); return; }
+        else return;
+        save(o); sync();
+      });
+      cb.addEventListener('change', function () { var o = read(); o.label = cb.checked; save(o); sync(); });
+    }
+    dlg.hidden = false;
+    sync();
+    var go = dlg.querySelector('button.go');
+    if (go) go.focus();
+  }
+  function closePicker() { if (dlg) dlg.hidden = true; }
+  function isOpen() { return !!dlg && !dlg.hidden; }
+  // 창의 눌린 표시와 미리보기를 지금 설정에 맞춘다
+  function sync() {
+    if (!dlg) return;
+    var o = read();
+    dlg.querySelectorAll('button[data-style]').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.style === o.style);
+      var cv = b.querySelector('canvas');
+      var r = cv.getBoundingClientRect();
+      paintInto(cv, { style: b.dataset.style, fg: fgOf(o), u: 1, bar: 60, mm: 10, label: o.label },
+                { w: r.width || 100, h: r.height || 58 });
+    });
+    ['color', 'pos', 'size'].forEach(function (k) {
+      dlg.querySelectorAll('button[data-' + k + ']').forEach(function (b) { b.classList.toggle('on', b.dataset[k] === o[k]); });
+    });
+    dlg.querySelector('input[data-k="label"]').checked = o.label;
+  }
+  /* **창이 떠 있는 동안 화면의 단축키가 돌면 안 된다** — ←/→ 가 창 너머의 컷을 넘긴다.
+     가장 바깥(window, 붙잡기)에서 끊는다. Esc 는 창을 닫는다. */
+  window.addEventListener('keydown', function (e) {
+    if (!isOpen()) return;
+    e.stopPropagation();
+    if (e.key === 'Escape') { closePicker(); e.preventDefault(); }
+  }, true);
+
+  return { read: read, save: save, paintInto: paintInto, niceLength: niceLength, fmtLen: fmtLen,
+           sizeF: sizeF, fgOf: fgOf, openPicker: openPicker, isOpen: isOpen };
+})();
+</script>

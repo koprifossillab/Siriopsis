@@ -12,6 +12,9 @@ DiaRUGA 와 다른 것:
 - **고친 묶음은 `edited_at` 을 단다** — 반입(`lightseries.py`)이 그 묶음을 건너뛴다. 사본도 묶음이라 고칠 수 있다
 - **PTM 은 고치지 않는다.** 50 방향과 `.lp` 가 짝이라 가르거나 합칠 까닭이 없다
 
+**배율(`Scale`, wetherilli 010)은 잰 컷을 따라간다** — 가르면 잰 컷이 간 조각으로, 합치면 받는 쪽의 것이 남고
+받는 쪽에 없을 때만 보낸 쪽의 것을 받는다(그 컷이 이제 받는 쪽에 있다).
+
 **정본을 지우거나 다른 묶음에 합치면 그 사본도 숨는다** — 사본은 정본의 「같은 묶음」 줄에서만 보이므로(`views.stack`),
 정본이 숨으면 사본은 길을 잃는다. 미리보기가 그것을 먼저 보인다.
 """
@@ -21,7 +24,7 @@ from django.db import transaction
 from django.db.models import F, Max, Q
 from django.utils import timezone
 
-from .models import EditLog, Frame, Stack
+from .models import EditLog, Frame, Scale, Stack
 
 # seq 를 다시 매기는 동안 (stack, seq) 유일 제약에 걸리지 않게 잠깐 치워 두는 자리 — 한 묶음의 컷 수보다 훨씬 크면 된다
 SEQ_PARK = 10000
@@ -70,6 +73,24 @@ def _ordered(frames):
 
 def _row(f):
     return {"id": f.id, "no": f.shot_no, "name": f.path.rsplit("/", 1)[-1]}
+
+
+def _follow_split(stack, made):
+    """가른 뒤 — 배율이 잰 컷이 간 조각으로 간다. 잰 컷이 이 묶음에 남았으면 그대로."""
+    sc = Scale.objects.filter(stack=stack).first()
+    if sc is None:
+        return
+    to = (Frame.objects.filter(path=sc.frame_path, stack_id__in=[stack.id] + made)
+          .values_list("stack_id", flat=True).first())
+    if to and to != stack.id:
+        sc.stack_id = to
+        sc.save(update_fields=["stack"])
+
+
+def _follow_merge(stack, other):
+    """합친 뒤 — 받는 쪽에 배율이 없을 때만 보낸 쪽의 것을 받는다."""
+    if not Scale.objects.filter(stack=stack).exists():
+        Scale.objects.filter(stack=other).update(stack=stack)
 
 
 def _log(action, stack, **detail):
@@ -141,6 +162,7 @@ def apply_split(stack, after):
         _refresh(new, now)
         made.append(new.id)
     _refresh(stack, now)            # 조각을 다 옮긴 뒤에 — 그 전에는 남은 컷이 아직 이 묶음에 있다
+    _follow_split(stack, made)
     _log("split", stack, pieces=[[f.path for f in p] for p in pieces], new_stacks=made)
     return made
 
@@ -186,6 +208,7 @@ def apply_merge(stack, other_id):
     moved = [f.path for f in other.frames.order_by("seq")]
     _renumber(stack, _ordered(list(stack.frames.order_by("seq")) + list(other.frames.order_by("seq"))))
     _refresh(stack, now)
+    _follow_merge(stack, other)
     copies = _hide(other, now)
     _log("merge", stack, merged=other.id, frames=moved, copies_hidden=copies)
     return stack.id

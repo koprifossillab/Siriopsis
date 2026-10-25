@@ -13,6 +13,10 @@
 
   **해상도는 둘이다**(사용자 2026-10-25, 005 §해상도) — 저해상도는 모든 컷을 1600 폭으로 미리 받고 확대해도 원본을
   부르지 않는다. 고해상도는 모든 컷을 2560 폭으로 미리 받고, 그보다 확대하면 지금 컷만 원본으로 바꾼다.
+
+  **스케일바와 길이 재기**(사용자 2026-10-25, wetherilli 010) — 배율은 빛 묶음 1 번 컷의 자에서 잰 것(`Scale`)이고,
+  잰 컷과 크기가 같은 컷에만 쓴다. 배율이 없으면 스케일바를 안 그리고 길이는 px 로 적는다(mm 를 지어내지 않는다).
+  스케일바 모양은 `_scalebar.html`(DiaRUGA 에서 옮김), 길이 재기는 DiaRUGA v0.37.1 `_detview_js.html` 「길이 재기」(230)에서 옮겼다.
 {% endcomment %}
 {% block subtitle %}<a href="{% url 'home' %}">표본</a> /
   <a href="{% url 'slab' stack.slab.slab_no %}">{{ stack.slab.slab_no }}</a> /
@@ -131,7 +135,27 @@
   .hiddenshots img { width: 74px; height: 52px; object-fit: cover; border-radius: 5px; opacity: .55; display: block; }
   .hiddenshots button { margin-top: 3px; padding: 1px 6px; font-size: 11px; }
   .notice { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+
+  /* 사진 위의 그림 칸 — 원본 화소 좌표(viewBox)라 확대·이동을 사진과 함께 탄다. 누르기는 사진 칸이 받는다 */
+  #acanvas { position: relative; }
+  #ov { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+  /* 길이 재기 (DiaRUGA 230) — 흰 실선, 확대해도 굵기가 같다 */
+  .detview.measuring, .detview.measuring #main { cursor: crosshair; }
+  #ov g.measure polyline { fill: none; stroke: #fff; stroke-width: 2px; vector-effect: non-scaling-stroke;
+                           filter: drop-shadow(0 0 1.5px rgba(0,0,0,.9)); }
+  #ov g.measure polyline.rubber { stroke: rgba(255,255,255,.65); stroke-dasharray: 4 3; }
+  #ov g.measure circle { fill: #fff; stroke: rgba(0,0,0,.6); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+  .measout { position: absolute; top: 8px; right: 72px; z-index: 6; pointer-events: none; display: flex; flex-direction: column;
+             gap: 1px; padding: 6px 11px 7px; line-height: 1.3; text-align: right;
+             background: color-mix(in srgb, var(--panel) 90%, transparent); border: 1px solid var(--line); border-radius: 9px;
+             box-shadow: 0 4px 16px rgba(0,0,0,.28); }
+  .measout[hidden] { display: none; }
+  .measout b { font: 700 16px/1.25 ui-monospace, "SF Mono", Menlo, monospace; color: var(--accent); }
+  .measout span { font-size: 11px; color: var(--fg); }
+  .measout small { font-size: 10.5px; color: var(--dim); }
+  .detview.measuring .scalebar.pos-tr { top: 80px; }
 </style>
+{% include "specimens/_scalebar.html" %}
 {% endblock %}
 {% block content %}
 <div class="sv">
@@ -164,6 +188,7 @@
         {% else %}<dt>← →</dt><dd>앞·뒤 컷</dd><dt>1–9</dt><dd>그 번호의 컷</dd>{% endif %}
         <dt>휠 · + −</dt><dd>확대 · 축소</dd><dt>0</dt><dd>맞춤</dd>
         <dt>h</dt><dd>저해상도 ↔ 고해상도</dd><dt>f</dt><dd>전체 화면</dd>
+        <dt>m</dt><dd>길이 재기 (Esc 끄기)</dd>
         <dt>PgUp PgDn</dt><dd>앞·뒤 더미</dd>
       </dl>
     </div>
@@ -171,7 +196,7 @@
 
   <section>
     <div class="detview" id="aview">
-      <div id="acanvas"><img id="main" alt="{{ stack.label }}" draggable="false"></div>
+      <div id="acanvas"><img id="main" alt="{{ stack.label }}" draggable="false"><svg id="ov" preserveAspectRatio="none"><g class="measure"></g></svg></div>
       <div class="toolcol" role="toolbar" aria-label="보기">
         <span class="tool-cap">보기</span>
         <button type="button" class="tool" data-act="fit" title="맞춤 — 사진 전체가 보이게 (0)">
@@ -181,7 +206,12 @@
         <span class="tool-sep"></span>
         <button type="button" class="tool" data-mode="low" title="저해상도 — 컷을 1600 폭으로 받는다. 넘기기가 가볍고, 크게 확대하면 흐려진다 (h)"><span class="rl">SD</span><span>저해상도</span></button>
         <button type="button" class="tool" data-mode="high" title="고해상도 — 컷을 2560 폭으로 받고, 그보다 확대하면 지금 컷만 원본으로 (h)"><span class="rl">HD</span><span>고해상도</span></button>
+        <span class="tool-sep"></span>
+        <button type="button" class="tool" data-act="measure" title="길이 재기 — 눌러 가며 잇고, 같은 자리를 두 번 누르면 끝 (m · Esc 끄기)">
+          <svg viewBox="0 0 24 24"><path d="M3.5 16.5l13-13 4 4-13 13z"/><path d="M7 13l2 2M9.5 10.5l1.5 1.5M12 8l2 2M14.5 5.5l1.5 1.5"/></svg><span>길이</span></button>
       </div>
+      <output class="measout" id="measout" hidden></output>
+      <div class="scalebar" id="sb" hidden title="스케일바 — 두 번 누르면 모양을 고른다"><canvas></canvas></div>
       {% if stack.kind == 'ptm' %}<span class="lighttag" id="lighttag"></span>{% endif %}
       <span class="zoomtag" id="zoom-lv" title="원본 화소 기준 배율"></span>
       <span class="loadtag" id="loading"></span>
@@ -248,6 +278,11 @@
           {% if stack.slab.horizon %}<span class="dim"> · {{ stack.slab.horizon }}</span>{% endif %}</dd>
         <dt>처리</dt><dd>{{ stack.get_preparation_display }} · {{ stack.get_view_display }}</dd>
         <dt>크기</dt><dd>{{ stack.width }} × {{ stack.height }}</dd>
+        {% if stack.kind == 'series' %}<dt>배율</dt><dd>{% if scale and scale.mm_per_px %}{{ scale.mm_per_px|floatformat:5 }} mm/px
+          <span class="dim">· 1 mm = {% widthratio 1 scale.mm_per_px 1 %} px · 자에서 잼</span>
+          {% if scale_misfit %}<br><span class="dim">크기가 다른 컷 {{ scale_misfit }} 에는 배율이 없다</span>{% endif %}
+          {% elif scale %}<span class="dim">없음 — {{ scale.get_status_display }}{% if scale.note %} ({{ scale.note }}){% endif %}. 스케일바를 안 그리고 길이는 px 로 잰다</span>
+          {% else %}<span class="dim">아직 재지 않음 — 길이는 px 로 잰다</span>{% endif %}</dd>{% endif %}
         {% if stack.camera %}<dt>카메라</dt><dd>{{ stack.camera }}</dd>{% endif %}
         {% if stack.captured_at %}<dt>촬영</dt><dd>{{ stack.captured_at|date:"Y-m-d H:i" }}</dd>{% endif %}
         <dt>폴더</dt><dd class="mono">{{ stack.source_dir }}</dd>
@@ -388,6 +423,7 @@
     shown = i;
     shots.forEach(function (b, j) { b.classList.toggle('on', j === cur); b.classList.toggle('peek', j === peek && j !== cur); });
     if (IS_PTM) paintDots();
+    onFrame();
   }
   function go(i) {
     cur = (i + FR.length) % FR.length; peek = null; draw(cur); remember();
@@ -487,6 +523,7 @@
     lv.textContent = (pct ? (pct < 10 ? pct.toFixed(1) : Math.round(pct)) + '%' : '×' + k.toFixed(1)) +
                      (hires ? ' · 원본' : ' · ' + (mode === 'high' ? 'HD' : 'SD'));
     maybeHiRes();
+    updateScaleBar(); measRender();
   }
   function clampPan() {
     var vw = view.clientWidth, vh = view.clientHeight;
@@ -535,9 +572,12 @@
     clampPan(); apply();
   });
   canvas.addEventListener('pointerup', function () { drag = null; view.classList.remove('grabbing'); });
-  canvas.addEventListener('dblclick', function (e) { if (k === 1) zoomAt(3, e.clientX, e.clientY); else fit(); });
-  main.addEventListener('load', function () { clampPan(); apply(); });
-  window.addEventListener('resize', function () { fitHeight(); clampPan(); apply(); });
+  canvas.addEventListener('dblclick', function (e) {
+    if (meas) return;          // 재는 중에는 두 번 누르기가 「끝」이다
+    if (k === 1) zoomAt(3, e.clientX, e.clientY); else fit();
+  });
+  main.addEventListener('load', function () { placeOverlay(); clampPan(); apply(); });
+  window.addEventListener('resize', function () { fitHeight(); placeOverlay(); clampPan(); apply(); });
 
   // --- 「보기」 도구 ---------------------------------------------------------
   function toggleFull() {
@@ -546,7 +586,7 @@
   }
   document.addEventListener('fullscreenchange', function () {
     document.querySelector('[data-act="full"]').classList.toggle('on', !!document.fullscreenElement);
-    fitHeight(); clampPan(); apply();
+    fitHeight(); placeOverlay(); clampPan(); apply();
   });
   document.querySelector('[data-act="fit"]').addEventListener('click', fit);
   document.querySelector('[data-act="full"]').addEventListener('click', toggleFull);
@@ -573,12 +613,158 @@
   bright.addEventListener('input', tone); contrast.addEventListener('input', tone);
   document.getElementById('tone-reset').addEventListener('click', function () { bright.value = 100; contrast.value = 100; tone(); });
 
+  // --- 사진 위의 그림 칸 -----------------------------------------------------
+  // svg 를 사진의 상자에 겹치고 viewBox 를 **지금 컷의 원본 화소**로 둔다 — 잰 점·테두리는 원본 화소로 적고,
+  // 확대·이동은 #acanvas 의 transform 을 사진과 함께 탄다. 컷마다 크기가 다를 수 있어 컷을 바꿀 때마다 다시 단다.
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var ov = document.getElementById('ov');
+  var fw = 0, fh = 0;            // 지금 컷의 원본 크기
+  function placeOverlay() {
+    ov.style.left = main.offsetLeft + 'px'; ov.style.top = main.offsetTop + 'px';
+    ov.style.width = main.offsetWidth + 'px'; ov.style.height = main.offsetHeight + 'px';
+  }
+  function onFrame() {
+    var f = FR[shown];
+    var w = f.w || ORIG_W, h = f.h || 0;
+    // 크기가 다른 컷으로 가면 잰 점은 그 컷의 좌표가 아니다 — 지운다
+    if (meas && (w !== fw || h !== fh)) meas = { pts: [], at: null, done: false };
+    fw = w; fh = h;
+    ov.setAttribute('viewBox', '0 0 ' + fw + ' ' + fh);
+    updateScaleBar(); measRender();
+  }
+  // 화면 점 → 지금 컷의 원본 화소. 사진의 화면 상자(transform 이 든 것)로 잰다
+  function toImage(e) {
+    var r = main.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width * fw, y: (e.clientY - r.top) / r.height * fh };
+  }
+  // 원본 화소 하나가 화면에서 몇 px 인가 — 점의 반지름·「같은 자리」를 화면 화소로 재려고
+  function screenPerPx() { var r = main.getBoundingClientRect(); return fw ? r.width / fw : 1; }
+  function mmpp() { return FR[shown] ? FR[shown].mmpp : null; }
+
+  // --- 스케일바 (DiaRUGA `updateScaleBar` 에서) -------------------------------
+  // 확대하면 「화면에서 이만큼이 몇 mm 인가」가 달라지므로 매번 다시 잰다.
+  var SB = window.Siriopsis.sb;
+  var sb = document.getElementById('sb'), sbCanvas = sb.querySelector('canvas');
+  function updateScaleBar() {
+    // 배율을 모르면 그리지 않는다 — 틀린 스케일바는 없느니만 못하다
+    var m = mmpp();
+    if (!m || !main.offsetWidth || !fw) { sb.hidden = true; return; }
+    var vw0 = view.clientWidth;
+    var mmPerScreenPx = m * fw / (main.offsetWidth * k);
+    var o = SB.read();
+    var target = Math.max(70, Math.min(170, vw0 * 0.16)) * SB.sizeF(o);
+    var nice = SB.niceLength(mmPerScreenPx * target);
+    sb.hidden = false;
+    sb.className = 'scalebar pos-' + o.pos;
+    SB.paintInto(sbCanvas, { style: o.style, fg: SB.fgOf(o), u: SB.sizeF(o), bar: nice / mmPerScreenPx, mm: nice, label: o.label });
+  }
+  window.addEventListener('siriopsis:scalebar', updateScaleBar);
+  // 사진 위에 있으므로 사진 칸이 이 누름을 확대·이동으로 받으면 안 된다
+  ['wheel', 'pointerdown', 'click'].forEach(function (ev) { sb.addEventListener(ev, function (e) { e.stopPropagation(); }); });
+  sb.addEventListener('dblclick', function (e) { e.stopPropagation(); e.preventDefault(); SB.openPicker(); });
+
+  // --- 길이 재기 (DiaRUGA 230 — GSM 「거리」의 손맛) ---------------------------
+  // **눌러 가며 잇고, 같은 자리를 두 번 누르면 끝난다.** 끝난 선은 다음에 누를 때까지 남는다(잰 값을 읽는 동안).
+  // 다시 누르면 새로 잰다. Esc 나 「길이」 단추로 끈다. 저장하지 않는다. 끌면 사진을 옮긴다(확대했을 때).
+  // **배율을 모르면 px 로 적는다** — mm 를 지어내지 않는다.
+  var meas = null;
+  var measG = ov.querySelector('g.measure');
+  var measBtn = document.querySelector('[data-act="measure"]');
+  var measOut = document.getElementById('measout');
+  function measLen(pts) {
+    var L = 0;
+    for (var i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    return L;
+  }
+  function measFmt(L) {
+    var m = mmpp();
+    if (!m) return Math.round(L) + ' px';
+    var mm = L * m;
+    return (mm < 10 ? mm.toFixed(2) : mm < 100 ? mm.toFixed(1) : String(Math.round(mm))) + ' mm';
+  }
+  function svgEl(tag, attrs, cls) {
+    var e = document.createElementNS(SVGNS, tag);
+    for (var a in attrs) e.setAttribute(a, attrs[a]);
+    if (cls) e.setAttribute('class', cls);
+    return e;
+  }
+  function ptsAttr(pts) { return pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' '); }
+  function measRender() {
+    measG.textContent = '';
+    if (!meas) { measOut.hidden = true; return; }
+    var pts = meas.pts, r = 3.4 / screenPerPx();
+    if (!meas.done && meas.at && pts.length) {
+      measG.appendChild(svgEl('polyline', { points: ptsAttr([pts[pts.length - 1], meas.at]) }, 'rubber'));
+    }
+    if (pts.length > 1) measG.appendChild(svgEl('polyline', { points: ptsAttr(pts) }));
+    pts.forEach(function (p) { measG.appendChild(svgEl('circle', { cx: p[0], cy: p[1], r: r })); });
+    // 그리는 중에는 커서까지 잇는 변을 더한 값 — 다음 점을 어디 찍을지 정하는 데 쓴다
+    var live = (!meas.done && meas.at && pts.length) ? pts.concat([meas.at]) : pts;
+    var n = Math.max(0, live.length - 1);
+    measOut.hidden = false;
+    measOut.innerHTML = n
+      ? '<b>' + measFmt(measLen(live)) + '</b>' + (n > 1 ? '<span>' + n + '구간</span>' : '') +
+        (mmpp() ? '' : '<span>배율 없음 — 원본 화소</span>') +
+        '<small>' + (meas.done ? '사진을 누르면 새로 잰다 · Esc 끄기' : '같은 자리를 두 번 누르면 끝 · Backspace 한 점 무르기') + '</small>'
+      : '<b>길이 재기</b><small>사진을 눌러 시작 · 두 번 누르면 끝</small>';
+  }
+  function measStart() {
+    meas = { pts: [], at: null, done: false };
+    view.classList.add('measuring'); measBtn.classList.add('on');
+    measRender();
+  }
+  function measStop() {
+    if (!meas) return;
+    meas = null;
+    view.classList.remove('measuring'); measBtn.classList.remove('on');
+    measRender();
+  }
+  function measPoint(q) {
+    if (meas.done) meas = { pts: [], at: null, done: false };
+    var pts = meas.pts;
+    if (pts.length) {
+      // **두 번 누르기 = 끝.** 같은 자리를 다시 누른 것을 화면 화소로 잰다 — 원본 화소로 재면 배율에 따라 손맛이 달라진다
+      var last = pts[pts.length - 1], s = screenPerPx();
+      if (Math.hypot((q.x - last[0]) * s, (q.y - last[1]) * s) < 6) {
+        if (pts.length > 1) meas.done = true;
+        measRender();
+        return;
+      }
+    }
+    pts.push([q.x, q.y]);
+    measRender();
+  }
+  function measKey(e) {
+    if (e.key === 'Escape') { measStop(); return true; }
+    if (e.key === 'Enter') { if (meas.pts.length > 1) { meas.done = true; measRender(); } return true; }
+    if (e.key === 'Backspace') { if (meas.done) meas.done = false; meas.pts.pop(); measRender(); return true; }
+    return false;
+  }
+  measBtn.addEventListener('click', function () { if (meas) measStop(); else measStart(); });
+  // 누르기와 끌기를 가른다 — 끌면 사진을 옮기고(확대했을 때), 제자리에서 떼면 점을 찍는다
+  var press = null;
+  view.addEventListener('pointerdown', function (e) {
+    press = (meas && e.button === 0 && canvas.contains(e.target)) ? { x: e.clientX, y: e.clientY } : null;
+  });
+  view.addEventListener('pointerup', function (e) {
+    if (!press || !meas) { press = null; return; }
+    var moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+    press = null;
+    if (moved < 5) measPoint(toImage(e));
+  });
+  view.addEventListener('pointermove', function (e) {
+    if (!meas || meas.done || !meas.pts.length) return;
+    meas.at = (function (q) { return [q.x, q.y]; })(toImage(e));
+    measRender();
+  });
+
   // --- 키 -------------------------------------------------------------------
   var prevA = document.getElementById('go-prev'), nextA = document.getElementById('go-next');
   document.addEventListener('keydown', function (e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     var t = document.activeElement;
     if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.type !== 'range') return;
+    if (meas && measKey(e)) { e.preventDefault(); return; }
     switch (e.key) {
       case 'ArrowLeft': stepAz(-1); break;
       case 'ArrowRight': stepAz(1); break;
@@ -591,6 +777,7 @@
       case '-': case '_': zoomStep(1 / 1.25); break;
       case 'h': case 'H': setMode(mode === 'high' ? 'low' : 'high'); break;
       case 'f': case 'F': toggleFull(); break;
+      case 'm': case 'M': if (meas) measStop(); else measStart(); break;
       default:
         // 빛 묶음: 숫자 키는 그 번호의 컷으로
         if (!IS_PTM && /^[1-9]$/.test(e.key)) {
