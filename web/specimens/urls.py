@@ -14,4 +14,7 @@ urlpatterns = [
     path("stack/<int:pk>/outline/", views.outline, name="outline"),
     path("frame/<int:pk>/visibility/", views.frame_visibility, name="frame_visibility"),
     path("frame/<int:pk>.jpg", views.frame_image, name="frame_image"),
+    path("epma/<int:pk>/", views.epma_session, name="epma_session"),
+    path("epma/channel/<int:pk>.jpg", views.epma_image, name="epma_image"),
+    path("epma/channel/<int:pk>.bin", views.epma_data, name="epma_data"),
 ]

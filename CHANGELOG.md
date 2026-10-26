@@ -16,3 +16,4 @@
 | v0.3.1 | 2026-10-26 | 슬랩 화면에 vent 를 dorsal 옆에 나란히 · phyloserver `export.json` 반입(목록에 없음 393 → 27, counterpart 652) ([016](devlog/20261026_wetherilli_016_vent_beside_dorsal.md)) |
 | v0.3.2 | 2026-10-26 | 목록 열 너비 고정 · 목록·격자에 ☆·짝 표시, 찾기 줄에 ☆·짝 거르기 · 시험 116 ([017](devlog/20261026_wetherilli_017_list_fixed_columns_and_marks.md)) |
 | v0.3.3 | 2026-10-26 | 목록 칸이 줄을 바꾸지 않는다(넘치면 …, 전체는 title) · 번호 열을 넓혀 ☆·짝 표시가 한 줄에 ([017](devlog/20261026_wetherilli_017_list_fixed_columns_and_marks.md)) |
+| v0.4.0 | 2026-10-26 | EPMA — phyloserver `epma.json` 반입(`import_epma`), 슬랩 화면 EPMA 칸, 세션 화면 강도 뷰어(LUT·최소·최대·↑↓), `/data3/epma` 읽기 전용 마운트 · 시험 124 ([018](devlog/20261026_wetherilli_018_epma.md)) |

@@ -134,6 +134,10 @@ CATALOG_URL = os.environ.get("SIRIOPSIS_CATALOG_URL", "") or "http://172.16.116.
 # 화면의 링크는 사람의 PC 에서 열린다 — 거기서는 `paleolab` 이 풀린다
 CATALOG_LINK_URL = os.environ.get("SIRIOPSIS_CATALOG_LINK_URL", "") or "http://paleolab/siriuspasset/"
 
+# EPMA 파일의 뿌리 (specimens/epma.py, wetherilli 018) — phyloserver 가 가져와 둔 자리를 그대로 **읽기만** 한다.
+# 테이블의 파일 칸은 이 뿌리 기준 상대경로다. NAS 의 두 벌(내보내기·미러)은 백업이라 가리키지 않는다
+EPMA_ROOT = Path(os.environ.get("SIRIOPSIS_EPMA_ROOT", "") or "/data3/epma")
+
 # 컷 축소본 캐시 (specimens/thumbs.py). 원본은 NAS 의 20 MP JPEG 라 화면마다 줄여 보낸다.
 # 지워도 된다 — 다시 만든다. 운영은 `/data/Siriopsis/thumbcache`(DATA_ROOT 아래)
 THUMB_CACHE = Path(os.environ.get("SIRIOPSIS_THUMB_CACHE", "") or DATA_ROOT / "thumbcache")

@@ -271,3 +271,73 @@ class Outline(models.Model):
 
     def fits(self, width, height):
         return (width, height) == (self.width, self.height)
+
+
+class EpmaSession(models.Model):
+    """EPMA 측정 한 차례 — phyloserver `SpEpmaSession` 을 그대로 옮긴 것 (사용자 2026-10-26, wetherilli 018).
+
+    **원천은 phyloserver 다** — EPMA 를 가져오는 일(원자료 → 이미지·`.bin.gz`)은 지금처럼 phyloserver 가 하고, 여기는
+    `epma.json`(또는 내보낸 `SpEpma*.json`)을 읽어 맞춘다(`epma.py`). 그래서 행마다 phyloserver 의 id(`catalog_id`)가 열쇠고,
+    반입이 통째로 다시 맞춘다 — 사람이 여기서 고치는 칸은 없다. 파일은 `/data3/epma`(`EPMA_ROOT`)를 읽기만 한다.
+    슬랩·표본은 phyloserver id 로 잇는다(`Slab.catalog_id`). 테이블에 없는 슬랩이면 비워 두고 id 만 남긴다.
+    """
+    catalog_id = models.PositiveIntegerField(unique=True)
+    slab = models.ForeignKey(Slab, null=True, blank=True, on_delete=models.SET_NULL, related_name="epma_sessions")
+    specimen = models.ForeignKey(Specimen, null=True, blank=True, on_delete=models.SET_NULL, related_name="epma_sessions")
+    slab_catalog_id = models.PositiveIntegerField(null=True, blank=True)
+    specimen_catalog_id = models.PositiveIntegerField(null=True, blank=True)
+    session_number = models.PositiveIntegerField(default=0)
+    label = models.CharField(max_length=300, blank=True)
+    source_directory = models.CharField(max_length=500, blank=True)
+    data_format = models.CharField(max_length=20, blank=True)
+    instrument = models.CharField(max_length=100, blank=True)
+    accel_voltage = models.FloatField(null=True, blank=True)        # kV
+    probe_current = models.FloatField(null=True, blank=True)
+    acquisition_date = models.DateField(null=True, blank=True)
+    analyst = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
+    representative_catalog_id = models.PositiveIntegerField(null=True, blank=True)   # 대표 채널(phyloserver id)
+
+    class Meta:
+        ordering = ["acquisition_date", "session_number", "catalog_id"]
+
+    def __str__(self):
+        return self.label or f"EPMA {self.catalog_id}"
+
+
+class EpmaMap(models.Model):
+    """한 세션 안의 맵(측정 자리) 하나 — 채널들이 같은 화소 격자를 나눈다."""
+    catalog_id = models.PositiveIntegerField(unique=True)
+    session = models.ForeignKey(EpmaSession, on_delete=models.CASCADE, related_name="maps")
+    map_number = models.PositiveIntegerField(default=0)
+    label = models.CharField(max_length=300, blank=True)
+    source_directory = models.CharField(max_length=500, blank=True)
+    region_description = models.TextField(blank=True)
+    pixel_width = models.PositiveIntegerField(null=True, blank=True)
+    pixel_height = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["session", "map_number", "catalog_id"]
+
+
+class EpmaChannel(models.Model):
+    """맵의 원소(또는 SEI·COMPO 같은 상) 하나. 파일 칸은 `EPMA_ROOT` 기준 상대경로 — 비면 ``."""
+    catalog_id = models.PositiveIntegerField(unique=True)
+    map = models.ForeignKey(EpmaMap, on_delete=models.CASCADE, related_name="channels")
+    element = models.CharField(max_length=50, blank=True)
+    line = models.CharField(max_length=20, blank=True)
+    method = models.CharField(max_length=20, blank=True)          # EDS · WDS
+    channel_number = models.PositiveIntegerField(default=0)
+    image_file = models.CharField(max_length=500, blank=True)
+    data_file = models.CharField(max_length=500, blank=True)
+    binary_data_file = models.CharField(max_length=500, blank=True)   # gzip(<HH w,h + uint16 LE 행 우선) — 뷰어가 읽는다
+    condition_file = models.CharField(max_length=500, blank=True)
+    original_path = models.CharField(max_length=500, blank=True)
+    is_special = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["map", "is_special", "element", "line", "method", "channel_number"]
+
+    @property
+    def name(self):
+        return " ".join(x for x in (self.element, self.line, self.method) if x)

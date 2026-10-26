@@ -24,6 +24,8 @@ x-common: &common
     - "/nfs/temp-share/Sirius Passet Catalog:/nfs/temp-share/Sirius Passet Catalog:ro"
     # 축소본 캐시는 루트 SSD 가 아니라 8 TB 하드에 (.guides/web/operations.md §6)
     - /data/Siriopsis/thumbcache:/data/Siriopsis/thumbcache
+    # EPMA 파일 (wetherilli 018) — phyloserver 가 가져와 둔 자리를 **읽기 전용**으로. NAS 의 두 벌은 백업이라 붙이지 않는다
+    - /data3/epma:/data3/epma:ro
     # 백업 자리는 **읽기만** — /healthz 가 사본의 나이와 실패 깃발을 본다. 쓰는 것은 아래 backup 문뿐이다
     - /srv/Siriopsis/backup:/srv/Siriopsis/backup:ro
 
@@ -46,6 +48,7 @@ services:
   #   docker compose run --rm manage scan_light_stacks --under "SP-2016 샘플별/6D 외"
   #   docker compose run --rm manage scan_light_series
   #   docker compose run --rm manage import_catalog
+  #   docker compose run --rm manage import_epma
   #
   # 호스트 venv 로 운영 DB 를 열지 않는다 (.guides/web/data-safety.md §14).
   manage:

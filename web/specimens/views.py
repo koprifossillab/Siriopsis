@@ -11,8 +11,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from . import browse, outlines, regroup, scales, thumbs, workbook
-from .models import Frame, Slab, Stack
+from . import browse, epma, outlines, regroup, scales, thumbs, workbook
+from .models import EpmaChannel, EpmaSession, Frame, Slab, Stack
 
 PER_PAGE = 48
 
@@ -143,7 +143,55 @@ def slab(request, slab_no):
         "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
         # counterpart 짝 (013) — `{% include "specimens/_counterpart.html" %}` 가 그린다
         "counterparts": _counterparts(s),
+        "epma": _epma_sessions(s),
     })
+
+
+def _epma_sessions(s):
+    """이 슬랩의 EPMA 세션 (018) — 대표 채널과 맵·채널 수를 붙인다."""
+    from django.db.models import Count
+    sessions = list(s.epma_sessions.select_related("specimen")
+                    .annotate(n_maps=Count("maps", distinct=True), n_channels=Count("maps__channels")))
+    epma.representative(sessions)
+    return sessions
+
+
+def epma_session(request, pk):
+    """EPMA 세션 하나 (018) — 맵마다 채널, 고른 채널의 강도를 캔버스에(phyloserver `epma_interactive.js` 를 옮겼다)."""
+    s = get_object_or_404(EpmaSession.objects.select_related("slab", "specimen"), pk=pk)
+    maps = list(s.maps.prefetch_related("channels"))
+    epma.representative([s])
+    chans = [c for m in maps for c in m.channels.all()]
+    try:
+        cur = next(c for c in chans if c.id == int(request.GET.get("c", 0)))
+    except (StopIteration, ValueError):
+        cur = s.rep or next(iter(chans), None)
+    return render(request, "specimens/epma.html", {
+        "session": s, "maps": maps, "cur": cur, "n_channels": len(chans),
+        "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
+    })
+
+
+def _epma_file(path, content_type):
+    if path is None:
+        raise Http404("파일이 없다")
+    resp = FileResponse(path.open("rb"), content_type=content_type)
+    # 채널 id 는 phyloserver 의 행과 함께 간다 — 파일은 갈아 끼우지 않는다(이름에 덧붙인 꼬리가 다르다)
+    resp["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+def epma_image(request, pk):
+    """`/epma/channel/<id>.jpg[?thumb=1]` — 채널 이미지(phyloserver 가 만든 것), 썸네일은 옆 `.thumbnails/`."""
+    c = get_object_or_404(EpmaChannel, pk=pk)
+    path = epma.thumb_path(c.image_file) if request.GET.get("thumb") else epma.file_path(c.image_file)
+    return _epma_file(path, "image/jpeg")
+
+
+def epma_data(request, pk):
+    """`/epma/channel/<id>.bin` — 강도 값(gzip 째로, 풀기는 브라우저가). Content-Encoding 을 달지 않는다 — 뷰어가 직접 푼다."""
+    c = get_object_or_404(EpmaChannel, pk=pk)
+    return _epma_file(epma.file_path(c.binary_data_file), "application/octet-stream")
 
 
 def _counterparts(s):

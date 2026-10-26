@@ -5,7 +5,7 @@
 """
 from django.core.management.base import BaseCommand
 
-from specimens import bare
+from specimens import bare, epma
 from specimens.catalog import sync
 from specimens.models import Slab
 
@@ -24,3 +24,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"슬랩 찾음 {found} · 목록에 없음 {missing} · 표본 채움 {filled} · 못 읽음 {len(errors)}"))
         self.stdout.write(bare.summary())
+        # EPMA 세션은 phyloserver 슬랩 id 로 붙는다 — 새로 찾은 슬랩·표본에 다시 잇는다 (018)
+        n = epma.relink()
+        if n:
+            self.stdout.write(f"EPMA 세션 다시 이음 {n}")

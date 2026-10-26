@@ -13,6 +13,7 @@
 
 | 글 | 무엇 |
 |---|---|
+| [20261026_wetherilli_018](20261026_wetherilli_018_epma.md) | EPMA 를 붙인다 — phyloserver `epma.json` + `/data3/epma` 읽기 전용, 슬랩 화면 칸·세션 화면 강도 뷰어 (`v0.4.0`) |
 | [20261026_wetherilli_017](20261026_wetherilli_017_list_fixed_columns_and_marks.md) | 목록 열 너비 고정(접고 펼 때 17~23 가지 → 1), ☆·짝 표시와 거르기 (`v0.3.2`) |
 | [20261026_wetherilli_016](20261026_wetherilli_016_vent_beside_dorsal.md) | vent 를 dorsal 옆에(`v0.3.1`), export.json 반입 — 목록에 없음 393 → 27 |
 | [20261026_wetherilli_015](20261026_wetherilli_015_phyloserver_export_survey.md) | phyloserver siriuspasset 통째 내보내기 조사 — 슬랩 4,583·표본 9,505·사진 83,375(원본은 NAS)·EPMA 167 GB·이력 |

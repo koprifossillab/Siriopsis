@@ -85,6 +85,8 @@ paleoadmin 요청(`temp/`)·사람이 넘겨줄 자료를 여기에 둔다. 만�
 **분류 정보의 원천은 phyloserver `siriuspasset`**(`http://paleolab/siriuspasset/specimen_list/`, 연구실이 고쳐 가는 목록).
 JSON API 가 없어 `import_catalog` 가 목록 화면의 표를 읽는다(`specimens/catalog.py`) — 읽기만, 테이블에 있는 슬랩만.
 서버 안에서는 `paleolab` 이름이 안 풀려 `http://172.16.116.98/siriuspasset/`(`SIRIOPSIS_CATALOG_URL`)로 부른다.
+**EPMA 도 phyloserver 가 원천**(018) — 메타는 `epma.json`(`import_epma`), 파일은 phyloserver 가 가져와 둔 `/data3/epma`(`SIRIOPSIS_EPMA_ROOT`)를 **읽기만** 한다.
+NAS 의 EPMA 사본(`phyloserver-export/…/media/epma`·`DatabaseBackup/phyloserver/epma`)은 백업이라 읽지 않는다.
 
 ## 환경
 

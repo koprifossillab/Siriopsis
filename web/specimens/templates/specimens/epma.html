@@ -1,0 +1,174 @@
+{% extends "core/base.html" %}
+{% block title %}{{ session.label }} — {% endblock %}
+{% comment %}
+  EPMA 세션 하나 (사용자 2026-10-26, wetherilli 018). [왼쪽: 고른 채널의 강도를 캔버스에] [오른쪽: 맵마다 채널 줄].
+  강도 뷰어는 phyloserver `static/js/epma_interactive.js` 에서 옮겼다 — gzip 을 브라우저가 풀고(`DecompressionStream`),
+  `<HH` 가로·세로 + uint16 LE 행 우선 값을 LUT 로 칠한다. 더한 것: 최솟값, 위·아래 키로 채널 넘기기, 고른 채널을 주소에(`?c=`).
+{% endcomment %}
+{% block subtitle %}{% if session.slab %}<a href="{% url 'home' %}?y={{ session.slab.year }}">SP-{{ session.slab.year }}</a> / <a href="{% url 'slab' session.slab.slab_no %}">{{ session.slab.slab_no }}</a> / {% endif %}<b>EPMA {{ session.session_number }}</b>{% endblock %}
+{% block mainclass %} class="wide"{% endblock %}
+{% block head %}
+<style>
+  .ep { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+  .ep .stage { position: relative; background: #000; border: 1px solid var(--line); border-radius: 9px; overflow: hidden;
+               display: flex; align-items: center; justify-content: center; height: calc(100vh - 230px); min-height: 360px; }
+  .ep canvas, .ep .stage img { max-width: 100%; max-height: 100%; image-rendering: pixelated; cursor: crosshair; display: block; }
+  .ep .stage > .dim { padding: 24px; text-align: center; overflow-wrap: anywhere; }
+  .ep .info { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,.7); color: #fff; font-size: 12px;
+              padding: 2px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+  .ep .ctl { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 13px; white-space: nowrap; }
+  .ep .ctl label { display: flex; gap: 6px; align-items: center; }
+  .ep .ctl input[type=range] { width: 220px; }
+  .ep .ctl .v { font-variant-numeric: tabular-nums; min-width: 3.5em; display: inline-block; }
+  .ep .side { position: sticky; top: 64px; max-height: calc(100vh - 80px); overflow-y: auto; }
+  .ep .meta { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 10px 13px; font-size: 13px; margin-bottom: 10px; }
+  .ep .meta dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
+  .ep .meta dt { color: var(--dim); }
+  .ep .meta dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ep h3 { font-size: 12.5px; margin: 12px 0 5px; color: var(--dim); font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ep .chs { display: flex; flex-direction: column; gap: 3px; }
+  .ep .ch { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 3px; border-radius: 7px;
+            border: 1px solid transparent; color: inherit; font-size: 13px; white-space: nowrap; }
+  .ep .ch:hover { background: var(--group-bg); text-decoration: none; }
+  .ep .ch.on { border-color: var(--accent); background: var(--group-bg); }
+  .ep .ch img, .ep .ch .noimg { width: 54px; height: 32px; object-fit: cover; border-radius: 4px; background: #000; display: block; }
+  .ep .ch b { overflow: hidden; text-overflow: ellipsis; }
+  .ep .ch .dim { font-size: 11.5px; }
+  .ep .ch.none { opacity: .5; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h2>{{ session.label }}</h2>
+  <span class="tag">EPMA</span>
+  {% if cur %}<span class="dim">{{ cur.name }}</span>{% endif %}
+</div>
+
+<div class="ep">
+  <div>
+    <div class="stage" id="stage">
+      {% if cur and cur.binary_data_file %}<canvas id="cv"></canvas>
+      {% elif cur and cur.image_file %}<img src="{% url 'epma_image' cur.id %}" alt="{{ cur.name }}">
+      {% else %}<span class="dim">phyloserver 가 이 채널의 이미지·강도 파일을 만들지 않았다{% if cur %} — 원자료 {{ cur.original_path }}{% endif %}</span>{% endif %}
+      <span class="info" id="info"></span>
+    </div>
+    {% if cur and cur.binary_data_file %}
+    <div class="ctl">
+      <label>색 <select id="lut"></select></label>
+      <label>최소 <input type="range" id="mn" min="0" max="1" value="0"><span class="v" id="mnv">0</span></label>
+      <label>최대 <input type="range" id="mx" min="1" max="1000" value="200"><span class="v" id="mxv">200</span></label>
+      <button type="button" class="btn" id="reset">처음대로</button>
+      <a href="{% url 'epma_image' cur.id %}" target="_blank" rel="noopener">phyloserver 가 만든 이미지 →</a>
+      <span class="dim">↑ ↓ 채널</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <aside class="side">
+    <div class="meta">
+      <dl>
+        <dt>슬랩</dt><dd>{% if session.slab %}<a href="{% url 'slab' session.slab.slab_no %}">{{ session.slab.slab_no }}</a>{% else %}<span class="dim">테이블에 없음 (phyloserver {{ session.slab_catalog_id }})</span>{% endif %}</dd>
+        {% if session.specimen %}<dt>표본</dt><dd>{{ session.specimen.letter }}{% if session.specimen.taxon_name %} <i>{{ session.specimen.taxon_name }}</i>{% endif %}</dd>{% endif %}
+        <dt>측정</dt><dd>{{ session.acquisition_date|date:"Y-m-d"|default:"—" }}{% if session.instrument %} · {{ session.instrument }}{% endif %}{% if session.accel_voltage %} · {{ session.accel_voltage|floatformat:"-1" }} kV{% endif %}</dd>
+        <dt>맵</dt><dd>{{ maps|length }} · 채널 {{ n_channels }}</dd>
+        {% if session.analyst %}<dt>측정자</dt><dd>{{ session.analyst }}</dd>{% endif %}
+        {% if session.description %}<dt>설명</dt><dd title="{{ session.description }}">{{ session.description }}</dd>{% endif %}
+        <dt>원자료</dt><dd class="mono" title="{{ session.source_directory }}">{{ session.source_directory }}</dd>
+      </dl>
+    </div>
+    {% for m in maps %}
+    <h3 title="{{ m.label }}">맵 {{ m.map_number }}{% if m.pixel_width %} · {{ m.pixel_width }} × {{ m.pixel_height }}{% endif %}{% if m.region_description %} · {{ m.region_description }}{% endif %}</h3>
+    <div class="chs">{% for c in m.channels.all %}
+      <a class="ch{% if c.id == cur.id %} on{% endif %}{% if not c.image_file and not c.binary_data_file %} none{% endif %}" href="?c={{ c.id }}" data-c="{{ c.id }}"{% if not c.image_file and not c.binary_data_file %} title="phyloserver 가 이미지·강도 파일을 만들지 않았다 — 원자료 {{ c.original_path }}"{% endif %}>
+        {% if c.image_file %}<img loading="lazy" src="{% url 'epma_image' c.id %}?thumb=1" alt="">{% else %}<span class="noimg"></span>{% endif %}
+        <b>{{ c.element }}{% if c.line %} <span class="dim">{{ c.line }}</span>{% endif %}</b>
+        <span class="dim">{% if not c.image_file and not c.binary_data_file %}파일 없음 · {% endif %}{{ c.method }}{% if c.is_special %} · 특수{% endif %}</span>
+      </a>{% endfor %}
+    </div>
+    {% endfor %}
+  </aside>
+</div>
+
+<script>
+(function () {
+  // 위·아래 키로 채널을 넘긴다 — 한 세션의 모든 채널 차례
+  var links = Array.prototype.slice.call(document.querySelectorAll('.ch'));
+  var at = links.findIndex(function (a) { return a.classList.contains('on'); });
+  document.addEventListener('keydown', function (e) {
+    if (e.target.closest('input, select, textarea')) return;
+    var d = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+    if (!d || !links.length) return;
+    e.preventDefault();
+    var next = links[Math.max(0, Math.min(links.length - 1, at + d))];
+    if (next && next !== links[at]) location.replace(next.href);
+  });
+  var on = links[at];
+  if (on) on.scrollIntoView({ block: 'nearest' });
+})();
+</script>
+
+{% if cur and cur.binary_data_file %}
+<script>
+/* EPMA 강도 뷰어 — phyloserver `static/js/epma_interactive.js` 에서 옮겼다(koprifossillab/phyloserver, 2026-03 devlog 022·023).
+   LUT 넷과 그리기는 그대로, 최솟값·주소·한국어 이름만 더했다. */
+(function () {
+  function lut(f) { var t = new Uint8Array(768); for (var i = 0; i < 256; i++) { var c = f(i); t[i*3] = c[0]; t[i*3+1] = c[1]; t[i*3+2] = c[2]; } return t; }
+  var m = Math.min;
+  var LUTS = {
+    GreenFireBlue: lut(function (i) { return i < 85 ? [0, m(255, i*3), 0] : i < 170 ? [m(255, (i-85)*3), 255, 0] : [255, 255, m(255, (i-170)*3)]; }),
+    Fire: lut(function (i) { return i < 64 ? [m(255, i*4), 0, 0] : i < 128 ? [255, m(255, (i-64)*4), 0] : i < 192 ? [255, 255, m(255, (i-128)*4)] : [255, 255, 255]; }),
+    Ice: lut(function (i) { return i < 85 ? [0, 0, m(255, i*3)] : i < 170 ? [0, m(255, (i-85)*3), 255] : [m(255, (i-170)*3), 255, 255]; }),
+    Grayscale: lut(function (i) { return [i, i, i]; })
+  };
+  var KEY = 'siriopsis.epma.lut';
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), info = document.getElementById('info');
+  var sel = document.getElementById('lut'), mn = document.getElementById('mn'), mx = document.getElementById('mx');
+  var mnv = document.getElementById('mnv'), mxv = document.getElementById('mxv');
+  var data = null, W = 0, H = 0, dataMax = 0, name = 'GreenFireBlue';
+  try { if (LUTS[localStorage.getItem(KEY)]) name = localStorage.getItem(KEY); } catch (e) {}
+  Object.keys(LUTS).forEach(function (k) { var o = new Option(k, k); o.selected = k === name; sel.add(o); });
+
+  function render() {
+    if (!data) return;
+    var t = LUTS[name], img = ctx.createImageData(W, H), px = img.data;
+    var lo = +mn.value, range = +mx.value - lo;
+    for (var i = 0; i < data.length; i++) {
+      var k = range > 0 ? Math.round(((data[i] - lo) / range) * 255) : 0;
+      k = k < 0 ? 0 : k > 255 ? 255 : k;
+      var p = i * 4;
+      px[p] = t[k*3]; px[p+1] = t[k*3+1]; px[p+2] = t[k*3+2]; px[p+3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  function labels() { mnv.textContent = mn.value; mxv.textContent = mx.value; }
+  function reset() { mn.value = 0; mx.value = dataMax; labels(); render(); }
+
+  sel.addEventListener('change', function () { name = sel.value; try { localStorage.setItem(KEY, name); } catch (e) {} render(); });
+  mn.addEventListener('input', function () { if (+mn.value >= +mx.value) mn.value = +mx.value - 1; labels(); render(); });
+  mx.addEventListener('input', function () { if (+mx.value <= +mn.value) mx.value = +mn.value + 1; labels(); render(); });
+  document.getElementById('reset').addEventListener('click', reset);
+  cv.addEventListener('mousemove', function (e) {
+    if (!data) return;
+    var r = cv.getBoundingClientRect();
+    var x = Math.floor((e.clientX - r.left) * W / r.width), y = Math.floor((e.clientY - r.top) * H / r.height);
+    if (x >= 0 && x < W && y >= 0 && y < H) info.textContent = '(' + x + ', ' + y + ') = ' + data[y * W + x];
+  });
+
+  info.textContent = '읽는 중…';
+  fetch('{% url "epma_data" cur.id %}').then(function (r) {
+    if (!r.ok) throw new Error(r.status);
+    return new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+  }).then(function (buf) {
+    var v = new DataView(buf);
+    W = v.getUint16(0, true); H = v.getUint16(2, true);
+    data = new Uint16Array(buf.slice(4, 4 + W * H * 2));
+    for (var i = 0; i < data.length; i++) if (data[i] > dataMax) dataMax = data[i];
+    mn.max = Math.max(dataMax, 1); mx.max = Math.max(dataMax * 2, 1);
+    cv.width = W; cv.height = H;
+    reset();
+    info.textContent = W + ' × ' + H + ' · 최대 ' + dataMax;
+  }).catch(function (e) { info.textContent = '강도 값을 못 읽었다 (' + e.message + ')'; });
+})();
+</script>
+{% endif %}
+{% endblock %}
