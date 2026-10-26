@@ -101,11 +101,21 @@ class ScanSlabViewsTest(SafeTestCase):
         scan(root=self.root)
         r = self.client.get(reverse("slab", args=["SP-2016-0064"]))
         self.assertEqual(r.context["rep"].label, "SP-2016-64")                  # 대표는 dorsal
+        self.assertEqual(r.context["vent"].label, "SP-2016-64(vent)")           # vent 는 dorsal 과 나란히
+        self.assertContains(r, 'class="heropair"')
         # vent 가 차례상 앞에 와도(dorsal 이 흰 코팅 폴더에만 있을 때) 대표는 dorsal
         put(self.root, "SP-2016 샘플별/SP-2016(71~80)", "SP-2016-77(vent).JPG", "SP-2016-77A-1.JPG", "SP-2016-77A-2.JPG")
         put(self.root, "SP-2016 샘플별/SP-2016-white coated", "SP-2016-77(dorsal).JPG")
         scan(root=self.root)
-        self.assertEqual(self.client.get(reverse("slab", args=["SP-2016-0077"])).context["rep"].label, "SP-2016-77")
+        r77 = self.client.get(reverse("slab", args=["SP-2016-0077"]))
+        self.assertEqual(r77.context["rep"].label, "SP-2016-77")
+        self.assertEqual(r77.context["vent"].label, "SP-2016-77(vent)")
+        # vent 만 있으면 그것이 대표이고 짝은 없다
+        put(self.root, MAIN, "SP-2016-66(vent).JPG", "SP-2016-66A-1.JPG", "SP-2016-66A-2.JPG")
+        scan(root=self.root)
+        r66 = self.client.get(reverse("slab", args=["SP-2016-0066"]))
+        self.assertEqual((r66.context["rep"].label, r66.context["vent"]), ("SP-2016-66(vent)", None))
+        self.assertNotContains(r66, 'class="heropair"')
         self.assertContains(r, "슬랩 전경")
         self.assertEqual([g["specimen"].letter for g in r.context["groups"]], ["A"])
         self.assertEqual(len(r.context["overview"]), 2)

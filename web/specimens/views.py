@@ -107,6 +107,10 @@ def slab(request, slab_no):
     # vent(뜻을 아직 모른다)는 dorsal 이 없을 때만 대표가 된다
     rep = (next((st for st in overview if not st.copy_of_id and "(vent)" not in st.label), None)
            or next((st for st in overview if not st.copy_of_id), None) or next(iter(stacks), None))
+    # vent 는 dorsal 과 나란히 (사용자 2026-10-26 「vent 는 dorsal 하고 병렬적으로」) — 대표가 dorsal 일 때만 짝을 짓는다
+    vent = None
+    if rep is not None and rep.kind == Stack.Kind.SLAB and "(vent)" not in rep.label:
+        vent = next((st for st in overview if not st.copy_of_id and "(vent)" in st.label and st.first_frame), None)
     dates = [st.captured_at for st in stacks + overview if st.captured_at]
     facts = {
         "n_stacks": len(stacks), "n_frames": sum(st.n_frames for st in stacks),
@@ -120,7 +124,7 @@ def slab(request, slab_no):
         st.first_frame = first.get(st.id)
     return render(request, "specimens/slab.html", {
         "slab": s, "groups": groups, "loose": loose, "hidden": hidden, "overview": overview,
-        "rep": rep, "facts": facts, "specimens": list(s.specimens.all()),
+        "rep": rep, "vent": vent, "heropair": [rep, vent] if vent else [], "facts": facts, "specimens": list(s.specimens.all()),
         "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
         # counterpart 짝 (013) — `{% include "specimens/_counterpart.html" %}` 가 그린다
         "counterparts": _counterparts(s),

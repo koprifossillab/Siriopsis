@@ -12,11 +12,16 @@
 <style>
   .slabv { display: grid; grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); gap: 18px; align-items: start; }
   @media (max-width: 900px) { .slabv { grid-template-columns: 1fr; } }
+  .slabv.pair { grid-template-columns: minmax(420px, 760px) minmax(0, 1fr); }
+  @media (max-width: 1100px) { .slabv.pair { grid-template-columns: 1fr; } }
   .slabv .lcol { position: sticky; top: 64px; }
   @media (max-width: 900px) { .slabv .lcol { position: static; } }
   .hero { display: block; background: #000; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
   .hero img { display: block; width: 100%; max-height: 62vh; object-fit: contain; }
   .hero .none { display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; color: var(--dim); font-size: 13px; }
+  .heropair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .heropair .hero img { max-height: 54vh; }
+  .heropair figure { margin: 0; min-width: 0; }
   .herocap { font-size: 12px; color: var(--dim); margin: 5px 2px 0; display: flex; gap: 8px; flex-wrap: wrap; }
   .herothumbs { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
   .herothumbs img { width: 64px; height: 48px; object-fit: cover; border-radius: 5px; border: 1px solid var(--line); }
@@ -54,9 +59,17 @@
   {% if slab.horizon %}<span class="tag">층준 {{ slab.horizon }}</span>{% endif %}
 </div>
 
-<div class="slabv">
+<div class="slabv{% if vent %} pair{% endif %}">
   <aside class="lcol">
-    {% if rep and rep.first_frame %}
+    {% if vent %}
+    {# dorsal 과 vent 를 나란히 (사용자 2026-10-26) #}
+    <div class="heropair">
+      {% for st in heropair %}<figure>
+        <a class="hero" href="{% url 'stack' st.id %}" title="{{ st.label }} — 크게 보기"><img src="{% frame_url st.first_frame 1600 %}" alt="{{ st.label }}"></a>
+        <figcaption class="herocap"><span>슬랩 전경 · {% if st == vent %}vent{% else %}dorsal{% endif %}</span>{% if st.captured_at %}<span>{{ st.captured_at|date:"Y-m-d" }}</span>{% endif %}</figcaption>
+      </figure>{% endfor %}
+    </div>
+    {% elif rep and rep.first_frame %}
     <a class="hero" href="{% url 'stack' rep.id %}" title="{{ rep.label }} — 크게 보기"><img src="{% frame_url rep.first_frame 1600 %}" alt="{{ slab.slab_no }}"></a>
     <p class="herocap">{% if rep.kind == 'slab' %}<span>슬랩 전경</span>{% else %}<span>전경 사진이 없다 — 첫 빛 묶음 {{ rep.label }}</span>{% endif %}
       {% if rep.captured_at %}<span>{{ rep.captured_at|date:"Y-m-d" }}</span>{% endif %}</p>
@@ -64,7 +77,7 @@
     <div class="hero"><span class="none">사진이 없다</span></div>
     {% endif %}
     {% if overview|length > 1 %}
-    <div class="herothumbs">{% for st in overview %}{% if st.id != rep.id and st.first_frame %}<a href="{% url 'stack' st.id %}" title="{{ st.label }} · {{ st.n_frames }}장"><img loading="lazy" src="{% frame_url st.first_frame 200 %}" alt=""></a>{% endif %}{% endfor %}</div>
+    <div class="herothumbs">{% for st in overview %}{% if st.id != rep.id and st.id != vent.id and st.first_frame %}<a href="{% url 'stack' st.id %}" title="{{ st.label }} · {{ st.n_frames }}장"><img loading="lazy" src="{% frame_url st.first_frame 200 %}" alt=""></a>{% endif %}{% endfor %}</div>
     {% endif %}
 
     <div class="props">
