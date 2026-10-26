@@ -87,7 +87,7 @@
         <dt>번호</dt><dd><b>{{ slab.slab_no }}</b> <span class="dim">· {{ slab.year }} 채집</span></dd>
         <dt>층준</dt><dd>{% if slab.horizon %}{{ slab.horizon }}{% else %}<span class="dim">미기록</span>{% endif %}</dd>
         <dt>표본</dt><dd>{% if specimens %}<ul class="sps">{% for sp in specimens %}<li><b>{{ sp.letter }}</b>{% if sp.taxon_name %}<i>{{ sp.taxon_name }}</i>{% endif %}{% if sp.phylum %} <span class="dim">{{ sp.phylum }}</span>{% endif %}</li>{% endfor %}</ul>{% else %}<span class="dim">없음</span>{% endif %}</dd>
-        <dt>더미</dt><dd>{{ facts.n_stacks }}{% if facts.n_ptm %} <span class="dim">(PTM {{ facts.n_ptm }})</span>{% endif %} · 컷 {{ facts.n_frames }}{% if facts.copies %} <span class="dim">· 사본 {{ facts.copies }}</span>{% endif %}</dd>
+        <dt>더미</dt><dd>{{ facts.n_stacks }}{% if facts.n_ptm %} <span class="dim">(PTM {{ facts.n_ptm }})</span>{% endif %}{% if facts.n_epma %} · EPMA {{ facts.n_epma }}{% endif %} · 컷 {{ facts.n_frames }}{% if facts.copies %} <span class="dim">· 사본 {{ facts.copies }}</span>{% endif %}</dd>
         {% if counterparts %}<dt>짝</dt><dd>{% for g in counterparts %}{% if g.slab %}<a href="{% url 'slab' g.other %}">{{ g.other }}</a>{% else %}{{ g.other }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %} <span class="dim">counterpart</span></dd>{% endif %}
         {% if facts.first %}<dt>촬영</dt><dd>{{ facts.first|date:"Y-m-d" }}{% if facts.last|date:"Ymd" != facts.first|date:"Ymd" %} – {{ facts.last|date:"Y-m-d" }}{% endif %}</dd>{% endif %}
         <dt>목록</dt><dd>{% if slab.catalog_id %}<a href="{{ catalog }}slab_detail/{{ slab.catalog_id }}/" target="_blank" rel="noopener">phyloserver 슬랩 정보 →</a>{% if slab.catalog_synced_at %}<br><span class="dim">{{ slab.catalog_synced_at|date:"Y-m-d" }} 에 읽음</span>{% endif %}{% else %}<span class="dim">phyloserver 목록에 없음</span>{% endif %}</dd>
@@ -97,41 +97,25 @@
 
   <div>
     {% include "specimens/_counterpart.html" %}
-    {% if epma %}
-    {# EPMA 세션 (018) — phyloserver 가 가져온 원소 맵. 표본이 정해진 세션은 그 글자를 단다 #}
-    <section class="sp">
-      <h3>EPMA <span class="dim" style="font-size:12px;font-weight:400">세션 {{ epma|length }} · phyloserver 에서 읽음</span></h3>
-      <div class="rows">{% for e in epma %}
-        <a class="srow" href="{% url 'epma_session' e.id %}">
-          {% if e.rep %}<img loading="lazy" src="{% url 'epma_image' e.rep.id %}?thumb=1" alt="">{% else %}<span class="noimg epnone">이미지 없음</span>{% endif %}
-          <span class="body">
-            <span class="t"><b>{{ e.label }}</b><span class="tag">EPMA</span>{% if e.specimen %}<span class="tag series">표본 {{ e.specimen.letter }}</span>{% endif %}</span>
-            <span class="m">{% if e.acquisition_date %}<b>{{ e.acquisition_date|date:"Y-m-d" }}</b> 측정 · {% endif %}맵 {{ e.n_maps }} · 채널 {{ e.n_channels }}{% if e.instrument %} · {{ e.instrument }}{% endif %}{% if e.accel_voltage %} · {{ e.accel_voltage|floatformat:"-1" }} kV{% endif %}</span>
-            <span class="f mono">{% if e.rep %}대표 {{ e.rep.name }}{% endif %}</span>
-          </span>
-        </a>{% endfor %}
-      </div>
-    </section>
-    {% endif %}
     {% for g in groups %}
     <section class="sp">
       <h3>{{ g.specimen.specimen_no }}
         {% if g.specimen.taxon_name %}<span class="taxon">{{ g.specimen.taxon_name }}</span>{% endif %}
         {% if g.specimen.phylum %}<span class="dim">{{ g.specimen.phylum }}</span>{% endif %}
-        <span class="dim" style="font-size:12px;font-weight:400">더미 {{ g.stacks|length }}</span>
+        <span class="dim" style="font-size:12px;font-weight:400">더미 {{ g.stacks|length }}{% if g.epma %} · EPMA {{ g.epma|length }}{% endif %}</span>
         {% if g.specimen.catalog_id %}<a href="{{ catalog }}specimen_detail/{{ g.specimen.catalog_id }}/" target="_blank" rel="noopener" style="font-size:12px">phyloserver →</a>{% endif %}
       </h3>
       {% if g.specimen.remarks %}<p class="remarks">{{ g.specimen.remarks }}</p>{% endif %}
-      <div class="rows">{% for st in g.stacks %}{% include "specimens/_stackrow.html" %}{% endfor %}</div>
+      <div class="rows">{% for st in g.stacks %}{% include "specimens/_stackrow.html" %}{% endfor %}{% for e in g.epma %}{% include "specimens/_epmarow.html" %}{% endfor %}</div>
     </section>
     {% endfor %}
-    {% if loose %}
+    {% if loose or loose_epma %}
     <section class="sp">
-      <h3>표본 글자 없음 <span class="dim" style="font-size:12.5px;font-weight:400">이름에 표본 글자가 없는 더미</span></h3>
-      <div class="rows">{% for st in loose %}{% include "specimens/_stackrow.html" %}{% endfor %}</div>
+      <h3>표본 글자 없음 <span class="dim" style="font-size:12.5px;font-weight:400">표본이 정해지지 않은 더미·EPMA 세션</span></h3>
+      <div class="rows">{% for st in loose %}{% include "specimens/_stackrow.html" %}{% endfor %}{% for e in loose_epma %}{% include "specimens/_epmarow.html" %}{% endfor %}</div>
     </section>
     {% endif %}
-    {% if not groups and not loose %}<p class="dim">빛 묶음·PTM 더미가 없다{% if overview %} — 슬랩 전경만 있다{% endif %}.</p>{% endif %}
+    {% if not groups and not loose and not loose_epma %}<p class="dim">빛 묶음·PTM 더미가 없다{% if overview %} — 슬랩 전경만 있다{% endif %}.</p>{% endif %}
     {% if hidden %}
     <section class="sp">
       <h3>지운 묶음 {{ hidden|length }} <span class="dim" style="font-size:12.5px;font-weight:400">묶음 고치기에서 지웠거나 다른 묶음에 합친 것 — 행이 남아 반입이 도로 만들지 않는다</span></h3>

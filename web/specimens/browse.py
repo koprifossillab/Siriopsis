@@ -19,7 +19,7 @@ from collections import defaultdict
 
 from django.db.models import Count, Min, Q, Sum
 
-from .models import Slab, Specimen, Stack
+from .models import EpmaSession, Slab, Specimen, Stack
 
 _NUM = re.compile(r"\d+(?:\.\d+)?")
 
@@ -54,6 +54,8 @@ def slab_rows(slabs):
         frames=Sum("n_frames", filter=Q(copy_of__isnull=True) & ~Q(kind=Stack.Kind.SLAB)),
         first=Min("captured_at"),
     )}
+    # EPMA 세션(018)은 빛 묶음·PTM 과 나란한 자료 — 세션 하나를 더미 하나처럼 센다
+    epma = dict(EpmaSession.objects.filter(slab_id__in=ids).values("slab_id").annotate(n=Count("id")).values_list("slab_id", "n"))
     specs = defaultdict(list)
     for sp in Specimen.objects.filter(slab_id__in=ids).only("slab_id", "letter", "taxon_name", "phylum"):
         specs[sp.slab_id].append(sp)
@@ -66,7 +68,7 @@ def slab_rows(slabs):
             "n_specimens": len(sp),
             "taxa": sorted({x.taxon_name for x in sp if x.taxon_name}),
             "phyla": sorted({x.phylum for x in sp if x.phylum}),
-            "series": a.get("series", 0), "ptm": a.get("ptm", 0), "copies": a.get("copies", 0),
+            "series": a.get("series", 0), "ptm": a.get("ptm", 0), "epma": epma.get(s.id, 0), "copies": a.get("copies", 0),
             "frames": a.get("frames") or 0, "first": a.get("first"),
         })
     return rows
@@ -114,13 +116,13 @@ def tree(rows, by="no"):
             for r in g["rows"]:
                 r["folder_head"] = r["folder"] != prev
                 prev = r["folder"]
-        for f in ("n_specimens", "series", "ptm", "copies", "frames"):
+        for f in ("n_specimens", "series", "ptm", "epma", "copies", "frames"):
             g[f] = sum(r[f] for r in g["rows"])
         out.append(g)
     return out
 
 
 def years():
-    """[(연도, 슬랩 수)] — 더미가 있는 슬랩만."""
-    return list(Slab.objects.filter(stacks__isnull=False).values_list("year")
+    """[(연도, 슬랩 수)] — 더미나 EPMA 세션이 있는 슬랩만."""
+    return list(Slab.objects.filter(Q(stacks__isnull=False) | Q(epma_sessions__isnull=False)).values_list("year")
                 .annotate(n=Count("id", distinct=True)).order_by("year"))

@@ -15,6 +15,9 @@ from . import browse, epma, outlines, regroup, scales, thumbs, workbook
 from .models import EpmaChannel, EpmaSession, Frame, Slab, Stack
 
 PER_PAGE = 48
+# 종류 거르기 — 더미의 종류에 EPMA 세션(018)을 나란히 둔다. EPMA 는 Stack 이 아니라 따로 된 테이블이다
+EPMA = "epma"
+KINDS = Stack.Kind.choices + [(EPMA, "EPMA")]
 
 
 def _first_frames(stack_ids):
@@ -29,7 +32,7 @@ def _first_frames(stack_ids):
 def home(request):
     """슬랩 목록 — 채집 연도 탭 → 번호 구간(NAS 의 열 개 폴더)·층준 구간 → 슬랩 (`browse.py`). DiaRUGA 목록처럼 표(`list`)와 격자(`grid`) 두 모양.
 
-    찾기(`q`)는 슬랩 번호·분류군·문, 거르기는 종류·☆ 별표·짝. 표는 한 연도를 통째로 내고(가장 많은 2017 이 2,317 줄), 격자는 쪽으로 나눈다.
+    찾기(`q`)는 슬랩 번호·분류군·문, 거르기는 종류(빛 묶음·PTM·전경·EPMA)·☆ 별표·짝. 표는 한 연도를 통째로 내고(가장 많은 2017 이 2,317 줄), 격자는 쪽으로 나눈다.
     """
     q = (request.GET.get("q") or "").strip()
     kind = (request.GET.get("kind") or "").strip()
@@ -43,13 +46,15 @@ def home(request):
     if year not in {y for y, _ in ys}:
         year = 0
 
-    slabs = Slab.objects.filter(stacks__hidden=False)
+    slabs = Slab.objects.filter(Q(stacks__hidden=False) | Q(epma_sessions__isnull=False))
     if year:
         slabs = slabs.filter(year=year)
     if q:
         slabs = slabs.filter(Q(slab_no__icontains=q) | Q(specimens__taxon_name__icontains=q)
                              | Q(specimens__phylum__icontains=q))
-    if kind in Stack.Kind.values:
+    if kind == EPMA:
+        slabs = slabs.filter(epma_sessions__isnull=False)
+    elif kind in Stack.Kind.values:
         slabs = slabs.filter(stacks__kind=kind, stacks__hidden=False)
     # ☆ 별표·짝으로 거르기 (사용자 2026-10-26) — 둘 다 켜면 둘 다 가진 슬랩
     star = request.GET.get("star") == "1"
@@ -63,7 +68,7 @@ def home(request):
 
     keep = {k: v for k, v in (("q", q), ("kind", kind), ("star", "1" if star else ""), ("pair", "1" if pair else ""),
                               ("by", "horizon" if by == "horizon" else "")) if v}
-    ctx = {"q": q, "kind": kind, "star": star, "pair": pair, "by": by, "kinds": Stack.Kind.choices, "mode": mode, "year": year,
+    ctx = {"q": q, "kind": kind, "star": star, "pair": pair, "by": by, "kinds": KINDS, "mode": mode, "year": year,
            "years": ys, "total_slabs": sum(n for _, n in ys), "keep": keep}
 
     def mark(rows):
@@ -76,7 +81,7 @@ def home(request):
         rows = mark(browse.slab_rows(list(slabs)))
         groups = browse.tree(rows, by)
         ctx.update(groups=groups, n_rows=len(rows), sums={
-            f: sum(g[f] for g in groups) for f in ("n_specimens", "series", "ptm", "copies", "frames")})
+            f: sum(g[f] for g in groups) for f in ("n_specimens", "series", "ptm", "epma", "copies", "frames")})
         return render(request, "specimens/home.html", ctx)
 
     page = Paginator(slabs, PER_PAGE).get_page(request.GET.get("page"))
@@ -112,12 +117,16 @@ def slab(request, slab_no):
         st.first_frame = first.get(st.id)
     overview += shared
     stacks = [st for st in stacks if st.kind != Stack.Kind.SLAB]
+    # EPMA 세션(018)은 빛 묶음·PTM 과 나란한 자료 — 같은 표본 칸에 카드로 넣는다. 표본이 안 정해진 세션은 「표본 글자 없음」 칸에
+    sessions = _epma_sessions(s)
     groups = []
     for sp in s.specimens.all():
         mine = [st for st in stacks if st.specimen_id == sp.id]
-        if mine:
-            groups.append({"specimen": sp, "stacks": mine})
+        ep = [e for e in sessions if e.specimen_id == sp.id]
+        if mine or ep:
+            groups.append({"specimen": sp, "stacks": mine, "epma": ep})
     loose = [st for st in stacks if st.specimen_id is None]
+    loose_epma = [e for e in sessions if e.specimen_id is None]
     # 왼쪽 칸 (사용자 2026-10-25): 대표 이미지는 정본 전경의 첫 컷, 없으면 첫 빛 묶음. 아래 상자에 슬랩의 속성
     # vent(뜻을 아직 모른다)는 dorsal 이 없을 때만 대표가 된다
     rep = (next((st for st in overview if not st.copy_of_id and "(vent)" not in st.label), None)
@@ -129,7 +138,7 @@ def slab(request, slab_no):
     dates = [st.captured_at for st in stacks + overview if st.captured_at]
     facts = {
         "n_stacks": len(stacks), "n_frames": sum(st.n_frames for st in stacks),
-        "n_ptm": sum(st.kind == Stack.Kind.PTM for st in stacks),
+        "n_ptm": sum(st.kind == Stack.Kind.PTM for st in stacks), "n_epma": len(sessions),
         "copies": s.stacks.filter(copy_of__isnull=False, hidden=False).count(),
         "first": min(dates) if dates else None, "last": max(dates) if dates else None,
         "taxa": sorted({sp.taxon_name for sp in s.specimens.all() if sp.taxon_name}),
@@ -143,7 +152,7 @@ def slab(request, slab_no):
         "catalog": settings.CATALOG_LINK_URL.rstrip("/") + "/",
         # counterpart 짝 (013) — `{% include "specimens/_counterpart.html" %}` 가 그린다
         "counterparts": _counterparts(s),
-        "epma": _epma_sessions(s),
+        "loose_epma": loose_epma,
     })
 
 

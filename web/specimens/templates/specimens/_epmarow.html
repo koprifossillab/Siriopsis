@@ -1,0 +1,10 @@
+{# EPMA 세션 카드 (018) — 더미 카드(`_stackrow.html`)와 같은 꼴로, 표본 칸 안에 나란히 #}
+<a class="srow" href="{% url 'epma_session' e.id %}">
+  {% if e.rep %}<img loading="lazy" src="{% url 'epma_image' e.rep.id %}?thumb=1" alt="">{% else %}<span class="noimg epnone">이미지 없음</span>{% endif %}
+  <span class="body">
+    <span class="t"><b>{{ e.label }}</b>
+      <span class="tag epma">EPMA</span></span>
+    <span class="m">{% if e.acquisition_date %}<b>{{ e.acquisition_date|date:"Y-m-d" }}</b> 측정 · {% endif %}맵 {{ e.n_maps }} · 채널 {{ e.n_channels }}{% if e.instrument %} · {{ e.instrument }}{% endif %}{% if e.accel_voltage %} · {{ e.accel_voltage|floatformat:"-1" }} kV{% endif %}</span>
+    <span class="f mono">{% if e.rep %}대표 {{ e.rep.name }} · {% endif %}{{ e.source_directory }}</span>
+  </span>
+</a>

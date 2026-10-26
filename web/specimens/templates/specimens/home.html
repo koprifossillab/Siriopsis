@@ -102,21 +102,21 @@
 {% if mode == 'list' %}
 {% if groups %}
 <table class="slabs">
-  <colgroup><col class="c-no"><col class="c-hz wide-only"><col><col class="c-ph wide-only"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-d wide-only"></colgroup>
+  <colgroup><col class="c-no"><col class="c-hz wide-only"><col><col class="c-ph wide-only"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-d wide-only"></colgroup>
   <thead><tr>
     <th>슬랩</th><th class="wide-only">층준</th><th>분류군</th><th class="wide-only">문</th>
-    <th class="n">표본</th><th class="n">빛 묶음</th><th class="n">PTM</th><th class="n">사본</th><th class="n">컷</th><th class="wide-only">처음 촬영</th>
+    <th class="n">표본</th><th class="n">빛 묶음</th><th class="n">PTM</th><th class="n">EPMA</th><th class="n">사본</th><th class="n">컷</th><th class="wide-only">처음 촬영</th>
   </tr></thead>
   <tbody>
   {% for g in groups %}
     <tr class="grp" data-g="{{ g.id }}">
       <td colspan="4"><span class="tw">▾</span> {{ g.name }}<span class="gsub">슬랩 {{ g.rows|length }}</span></td>
       <td class="n">{{ g.n_specimens }}</td><td class="n">{{ g.series }}</td>
-      <td class="n{% if not g.ptm %} zero{% endif %}">{{ g.ptm }}</td><td class="n{% if not g.copies %} zero{% endif %}">{{ g.copies }}</td>
+      <td class="n{% if not g.ptm %} zero{% endif %}">{{ g.ptm }}</td><td class="n{% if not g.epma %} zero{% endif %}">{{ g.epma }}</td><td class="n{% if not g.copies %} zero{% endif %}">{{ g.copies }}</td>
       <td class="n">{{ g.frames }}</td><td class="wide-only"></td>
     </tr>
     {% for r in g.rows %}
-    {% if r.folder_head %}<tr class="row fold" data-in="{{ g.id }}"><td colspan="10">{{ r.folder }}</td></tr>{% endif %}
+    {% if r.folder_head %}<tr class="row fold" data-in="{{ g.id }}"><td colspan="11">{{ r.folder }}</td></tr>{% endif %}
     <tr class="row" data-in="{{ g.id }}">
       <td><a class="no" href="{% url 'slab' r.slab.slab_no %}">{{ r.slab.slab_no }}</a>{% if r.stars %}<span class="mk star" title="별표 표본">{{ r.stars }}</span>{% endif %}{% if r.pairs %}<span class="mk pair" title="짝 {{ r.pairs|join:', ' }}">짝</span>{% endif %}</td>
       <td class="wide-only mono" title="{{ r.slab.horizon }}">{{ r.slab.horizon|default:"—" }}</td>
@@ -125,6 +125,7 @@
       <td class="n{% if not r.n_specimens %} zero{% endif %}">{{ r.n_specimens }}</td>
       <td class="n{% if not r.series %} zero{% endif %}">{{ r.series }}</td>
       <td class="n{% if not r.ptm %} zero{% endif %}">{{ r.ptm }}</td>
+      <td class="n{% if not r.epma %} zero{% endif %}">{{ r.epma }}</td>
       <td class="n{% if not r.copies %} zero{% endif %}">{{ r.copies }}</td>
       <td class="n">{{ r.frames }}</td>
       <td class="wide-only dim mono">{{ r.first|date:"Y-m-d"|default:"" }}</td>
@@ -133,7 +134,7 @@
   {% endfor %}
     <tr class="sum">
       <td colspan="4">합계 {{ n_rows }} 슬랩</td>
-      <td class="n">{{ sums.n_specimens }}</td><td class="n">{{ sums.series }}</td><td class="n">{{ sums.ptm }}</td>
+      <td class="n">{{ sums.n_specimens }}</td><td class="n">{{ sums.series }}</td><td class="n">{{ sums.ptm }}</td><td class="n">{{ sums.epma }}</td>
       <td class="n">{{ sums.copies }}</td><td class="n">{{ sums.frames }}</td><td class="wide-only"></td>
     </tr>
   </tbody>
@@ -174,7 +175,7 @@
     <span class="meta"><b>{{ r.slab.slab_no }}</b>
       <span class="sub">{{ r.slab.horizon|default:"층준 미기록" }} · 표본 {{ r.n_specimens }}</span>
       <span class="taxa">{{ r.taxa|join:", "|default:"—" }}</span>
-      <span class="tags">{% if r.stars %}<span class="tag star">{{ r.stars }}</span>{% endif %}{% if r.pairs %}<span class="tag pair" title="{{ r.pairs|join:', ' }}">짝 {{ r.pairs|length }}</span>{% endif %}{% if r.series %}<span class="tag series">빛 묶음 {{ r.series }}</span>{% endif %}{% if r.ptm %}<span class="tag ptm">PTM {{ r.ptm }}</span>{% endif %}{% if r.copies %}<span class="tag copy">사본 {{ r.copies }}</span>{% endif %}</span>
+      <span class="tags">{% if r.stars %}<span class="tag star">{{ r.stars }}</span>{% endif %}{% if r.pairs %}<span class="tag pair" title="{{ r.pairs|join:', ' }}">짝 {{ r.pairs|length }}</span>{% endif %}{% if r.series %}<span class="tag series">빛 묶음 {{ r.series }}</span>{% endif %}{% if r.ptm %}<span class="tag ptm">PTM {{ r.ptm }}</span>{% endif %}{% if r.epma %}<span class="tag epma">EPMA {{ r.epma }}</span>{% endif %}{% if r.copies %}<span class="tag copy">사본 {{ r.copies }}</span>{% endif %}</span>
     </span>
   </a>
   {% endfor %}

@@ -10,7 +10,7 @@ from django.urls import reverse
 
 from core.tests.base import SafeTestCase
 from specimens import epma
-from specimens.models import EpmaChannel, EpmaMap, EpmaSession, Slab, Specimen
+from specimens.models import EpmaChannel, EpmaMap, EpmaSession, Slab, Specimen, Stack
 
 REL = "SP/2017/2301-2400/SP-2017-2398/session_001/map_003"
 
@@ -135,10 +135,19 @@ class ScreenTest(SafeTestCase):
     def test_slab_and_session_pages(self):
         r = self.client.get(reverse("slab", args=["SP-2017-2398"]))
         s = EpmaSession.objects.get(catalog_id=3)
-        self.assertEqual([e.id for e in r.context["epma"]], [s.id])
-        self.assertEqual(r.context["epma"][0].rep, self.sei)                  # phyloserver 의 대표 채널
-        self.assertEqual((r.context["epma"][0].n_maps, r.context["epma"][0].n_channels), (1, 2))
+        # 빛 묶음·PTM 과 나란히 — 표본 칸 안의 카드 (사용자 2026-10-26). 더미가 없는 표본이라도 칸이 선다
+        [g] = r.context["groups"]
+        self.assertEqual((g["specimen"].letter, g["stacks"], [e.id for e in g["epma"]]), ("A", [], [s.id]))
+        self.assertEqual(g["epma"][0].rep, self.sei)                          # phyloserver 의 대표 채널
+        self.assertEqual((g["epma"][0].n_maps, g["epma"][0].n_channels), (1, 2))
+        self.assertEqual(r.context["loose_epma"], [])
+        self.assertEqual(r.context["facts"]["n_epma"], 1)
         self.assertContains(r, reverse("epma_session", args=[s.id]))
+        EpmaSession.objects.filter(pk=s.pk).update(specimen=None)              # 표본이 안 정해지면 「표본 글자 없음」 칸
+        r = self.client.get(reverse("slab", args=["SP-2017-2398"]))
+        self.assertEqual((r.context["groups"], [e.id for e in r.context["loose_epma"]]), ([], [s.id]))
+        self.assertContains(r, "표본 글자 없음")
+        EpmaSession.objects.filter(pk=s.pk).update(specimen=Specimen.objects.get(catalog_id=501))
         r = self.client.get(reverse("epma_session", args=[s.id]))
         self.assertEqual(r.context["cur"], self.sei)                          # 대표부터
         self.assertNotContains(r, 'id="cv"')                                  # 강도 파일이 없으면 이미지로
@@ -155,3 +164,21 @@ class ScreenTest(SafeTestCase):
         s = EpmaSession.objects.get(catalog_id=3)
         epma.representative([s])
         self.assertEqual(s.rep, self.sei)                                     # 특수 채널(SEI) 먼저
+
+    def test_list_column_and_kind(self):
+        """목록의 EPMA 열과 종류 거르기 — 더미가 없는 슬랩도 EPMA 가 있으면 목록에 든다."""
+        Slab.objects.create(slab_no="SP-2017-0001", year=2017)                # 아무것도 없는 슬랩 — 목록에 안 든다
+        lit = Slab.objects.create(slab_no="SP-2017-0002", year=2017)          # 빛 묶음만 있는 슬랩
+        Stack.objects.create(slab=lit, kind=Stack.Kind.SERIES, preparation="none", view="whole", label="x", source_dir="x", n_frames=2)
+        r = self.client.get(reverse("home") + "?y=2017")
+        rows = {x["slab"].slab_no: x for g in r.context["groups"] for x in g["rows"]}
+        self.assertEqual(list(rows), ["SP-2017-0002", "SP-2017-2398"])
+        self.assertEqual((rows["SP-2017-2398"]["epma"], r.context["sums"]["epma"]), (1, 1))
+        self.assertContains(r, '<th class="n">EPMA</th>')
+        self.assertIn((2017, 2), r.context["years"])
+        r = self.client.get(reverse("home") + "?y=2017&kind=epma")
+        self.assertEqual([x["slab"].slab_no for g in r.context["groups"] for x in g["rows"]], ["SP-2017-2398"])
+        r = self.client.get(reverse("home") + "?y=2017&kind=series")
+        self.assertEqual([x["slab"].slab_no for g in r.context["groups"] for x in g["rows"]], ["SP-2017-0002"])
+        r = self.client.get(reverse("home") + "?y=2017&view=grid")
+        self.assertContains(r, "EPMA 1")
