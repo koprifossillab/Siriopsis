@@ -263,6 +263,27 @@ def _attach_frames(rows):
                 break
 
 
+def slab_marks():
+    """목록 화면의 표시·거르기 (사용자 2026-10-26) — ({슬랩: ☆ 의 수}, {슬랩: [짝 슬랩 …]}).
+
+    `starred`·`pairs_for` 와 같은 원천 규칙을 따른다 — ☆ 는 phyloserver remarks, 목록에 없는 슬랩만 엑셀.
+    짝은 phyloserver 에서 읽은 슬랩은 그쪽 것만, 아니면 엑셀의 것. 두 방향을 합친다. 한 장에 같이 찍힌 전경(`64&65`)은 짝으로 치지 않는다 — 적힌 counterpart 만.
+    """
+    stars = defaultdict(int)
+    in_catalog = set(Slab.objects.filter(catalog_id__isnull=False).values_list("slab_no", flat=True))
+    for no, n in Star.objects.exclude(slab_no__in=in_catalog).values_list("slab_no", "stars"):
+        stars[no] = max(stars[no], n)
+    for no, remarks in Specimen.objects.filter(remarks__regex=f"[{STAR_CHARS}]").values_list("slab__slab_no", "remarks"):
+        stars[no] = max(stars[no], sum(remarks.count(ch) for ch in STAR_CHARS))
+    read = set(Slab.objects.filter(counterpart_synced_at__isnull=False).values_list("slab_no", flat=True))
+    pairs = defaultdict(set)
+    for origin, a, b in Counterpart.objects.values_list("origin", "slab_no", "other_slab_no"):
+        if (origin == Counterpart.Origin.PHYLOSERVER or a not in read) and a != b:
+            pairs[a].add(b)
+            pairs[b].add(a)
+    return dict(stars), {k: sorted(v) for k, v in pairs.items()}
+
+
 def pairs_for(slab_no):
     """이 슬랩의 짝 — 적힌 방향 둘을 합쳐 상대 슬랩마다 하나. → [{"other", "slab", "lines": [...], "uncertain"}]
 

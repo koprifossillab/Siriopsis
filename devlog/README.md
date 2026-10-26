@@ -13,6 +13,7 @@
 
 | 글 | 무엇 |
 |---|---|
+| [20261026_wetherilli_017](20261026_wetherilli_017_list_fixed_columns_and_marks.md) | 목록 열 너비 고정(접고 펼 때 17~23 가지 → 1), ☆·짝 표시와 거르기 (`v0.3.2`) |
 | [20261026_wetherilli_016](20261026_wetherilli_016_vent_beside_dorsal.md) | vent 를 dorsal 옆에(`v0.3.1`), export.json 반입 — 목록에 없음 393 → 27 |
 | [20261026_wetherilli_015](20261026_wetherilli_015_phyloserver_export_survey.md) | phyloserver siriuspasset 통째 내보내기 조사 — 슬랩 4,583·표본 9,505·사진 83,375(원본은 NAS)·EPMA 167 GB·이력 |
 | [20261026_wetherilli_014](20261026_wetherilli_014_release_v030.md) | `v0.3.0` 운영에 — 일꾼 둘과 지휘 세션의 브랜치를 합쳐(merge 마이그레이션) 올리고 반입 넷 |

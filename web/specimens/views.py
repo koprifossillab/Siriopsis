@@ -29,7 +29,7 @@ def _first_frames(stack_ids):
 def home(request):
     """슬랩 목록 — 채집 연도 탭 → 번호 구간(NAS 의 열 개 폴더)·층준 구간 → 슬랩 (`browse.py`). DiaRUGA 목록처럼 표(`list`)와 격자(`grid`) 두 모양.
 
-    찾기(`q`)는 슬랩 번호·분류군·문, 거르기는 종류. 표는 한 연도를 통째로 내고(가장 많은 2017 이 2,317 줄), 격자는 쪽으로 나눈다.
+    찾기(`q`)는 슬랩 번호·분류군·문, 거르기는 종류·☆ 별표·짝. 표는 한 연도를 통째로 내고(가장 많은 2017 이 2,317 줄), 격자는 쪽으로 나눈다.
     """
     q = (request.GET.get("q") or "").strip()
     kind = (request.GET.get("kind") or "").strip()
@@ -51,21 +51,36 @@ def home(request):
                              | Q(specimens__phylum__icontains=q))
     if kind in Stack.Kind.values:
         slabs = slabs.filter(stacks__kind=kind, stacks__hidden=False)
+    # ☆ 별표·짝으로 거르기 (사용자 2026-10-26) — 둘 다 켜면 둘 다 가진 슬랩
+    star = request.GET.get("star") == "1"
+    pair = request.GET.get("pair") == "1"
+    stars, pairs = workbook.slab_marks()
+    if star:
+        slabs = slabs.filter(slab_no__in=list(stars))
+    if pair:
+        slabs = slabs.filter(slab_no__in=list(pairs))
     slabs = slabs.distinct().order_by("slab_no")
 
-    keep = {k: v for k, v in (("q", q), ("kind", kind), ("by", "horizon" if by == "horizon" else "")) if v}
-    ctx = {"q": q, "kind": kind, "by": by, "kinds": Stack.Kind.choices, "mode": mode, "year": year,
+    keep = {k: v for k, v in (("q", q), ("kind", kind), ("star", "1" if star else ""), ("pair", "1" if pair else ""),
+                              ("by", "horizon" if by == "horizon" else "")) if v}
+    ctx = {"q": q, "kind": kind, "star": star, "pair": pair, "by": by, "kinds": Stack.Kind.choices, "mode": mode, "year": year,
            "years": ys, "total_slabs": sum(n for _, n in ys), "keep": keep}
 
+    def mark(rows):
+        for r in rows:
+            r["stars"] = "☆" * stars.get(r["slab"].slab_no, 0)
+            r["pairs"] = pairs.get(r["slab"].slab_no, [])
+        return rows
+
     if mode == "list":
-        rows = browse.slab_rows(list(slabs))
+        rows = mark(browse.slab_rows(list(slabs)))
         groups = browse.tree(rows, by)
         ctx.update(groups=groups, n_rows=len(rows), sums={
             f: sum(g[f] for g in groups) for f in ("n_specimens", "series", "ptm", "copies", "frames")})
         return render(request, "specimens/home.html", ctx)
 
     page = Paginator(slabs, PER_PAGE).get_page(request.GET.get("page"))
-    rows = browse.slab_rows(list(page))
+    rows = mark(browse.slab_rows(list(page)))
     # 슬랩마다 대표 더미 하나 — 정본 빛 묶음을 먼저(PTM 첫 컷은 낮은 빛이라 어둡다)
     rep = {}
     for st in (Stack.objects.filter(slab_id__in=[r["slab"].id for r in rows], copy_of__isnull=True, hidden=False)

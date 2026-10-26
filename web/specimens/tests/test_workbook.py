@@ -5,6 +5,7 @@ from pathlib import Path
 
 import openpyxl
 from django.urls import reverse
+from django.utils import timezone
 
 from core.tests.base import SafeTestCase
 from specimens import workbook
@@ -140,6 +141,31 @@ class ScreenTest(SafeTestCase):
         self.assertContains(r, "SP-2022-0275-A")
         self.assertContains(r, reverse("starred"))                        # 머리줄 링크
         self.assertEqual(self.client.get(reverse("starred") + "?view=grid").status_code, 200)
+
+    def test_list_marks_and_filters(self):
+        """목록의 ☆·짝 표시와 거르기 (사용자 2026-10-26) — 짝은 양쪽 슬랩에, phyloserver 에서 읽은 슬랩은 엑셀의 짝을 안 쓴다."""
+        series(Slab.objects.create(slab_no="SP-2016-0066", year=2016))
+        stars, pairs = workbook.slab_marks()
+        self.assertEqual(stars, {"SP-2016-0064": 1, "SP-2022-0275": 2})
+        self.assertEqual(pairs, {"SP-2016-0064": ["SP-2016-0065"], "SP-2016-0065": ["SP-2016-0064"]})
+        home = reverse("home")
+
+        def listed(qs):
+            r = self.client.get(home + qs)
+            return [x["slab"].slab_no for g in r.context["groups"] for x in g["rows"]], r
+
+        got, r = listed("?y=2016")
+        self.assertEqual(got, ["SP-2016-0064", "SP-2016-0065", "SP-2016-0066"])
+        self.assertContains(r, 'class="mk star"', count=1)
+        self.assertContains(r, 'class="mk pair"', count=2)
+        self.assertEqual(listed("?y=2016&star=1")[0], ["SP-2016-0064"])
+        self.assertEqual(listed("?y=2016&pair=1")[0], ["SP-2016-0064", "SP-2016-0065"])
+        self.assertEqual(listed("?y=2016&star=1&pair=1")[0], ["SP-2016-0064"])
+        r = self.client.get(home + "?y=2016&pair=1&view=grid")
+        self.assertEqual([x["slab"].slab_no for x in r.context["rows"]], ["SP-2016-0064", "SP-2016-0065"])
+        self.assertContains(r, ">짝 1<", count=2)
+        Slab.objects.filter(slab_no="SP-2016-0064").update(counterpart_synced_at=timezone.now())
+        self.assertEqual(workbook.slab_marks()[1], {})
 
     def test_pairs_seen_from_both_sides(self):
         for me, other in (("SP-2016-0064", "SP-2016-0065"), ("SP-2016-0065", "SP-2016-0064")):

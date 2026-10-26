@@ -21,6 +21,13 @@
   form.find { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; }
 
   table.slabs { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  /* 열 너비를 고정한다 (사용자 2026-10-26) — 자동 배치는 펼친 줄의 글자에 따라 접고 펼 때마다 열이 움직였다. 분류군이 남는 폭을 가진다 */
+  @media (min-width: 901px) {
+    table.slabs { table-layout: fixed; }
+    .slabs col.c-no { width: 10.5rem; } .slabs col.c-hz { width: 7.5rem; } .slabs col.c-ph { width: 13rem; }
+    .slabs col.c-n { width: 5rem; } .slabs col.c-d { width: 7.5rem; }
+    .slabs td { overflow-wrap: anywhere; }
+  }
   .slabs th { text-align: left; font-size: 11px; font-weight: 650; color: var(--dim); text-transform: uppercase;
               letter-spacing: .4px; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   .slabs td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -40,6 +47,16 @@
   .slabs .zero { color: var(--dim); opacity: .5; }
   .slabs tr.sum td { font-weight: 650; border-top: 2px solid var(--line); border-bottom: 0; }
   @media (max-width: 900px) { .slabs .wide-only { display: none; } }
+  .chip { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; padding: 4px 10px; border: 1px solid var(--line);
+          border-radius: 999px; cursor: pointer; user-select: none; white-space: nowrap; }
+  .chip:has(input:checked) { border-color: var(--accent); color: var(--accent); }
+  .chip input { margin: 0; accent-color: var(--accent); }
+  .mk { font-size: 12px; margin-left: 5px; white-space: nowrap; }
+  .mk.star { color: var(--warn); }
+  .mk.pair { color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); border-radius: 999px;
+             padding: 0 6px; font-size: 11px; line-height: 16px; display: inline-block; vertical-align: 1px; }
+  .tag.pair { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+  .tag.star { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
   .pager { margin: 1.2rem 0; display: flex; gap: .8rem; align-items: center; }
 </style>
 {% endblock %}
@@ -68,11 +85,13 @@
     <option value="">종류 전체</option>
     {% for v, l in kinds %}<option value="{{ v }}"{% if v == kind %} selected{% endif %}>{{ l }}</option>{% endfor %}
   </select>
+  <label class="chip" title="phyloserver remarks(목록에 없는 슬랩은 엑셀)의 ☆ — 연구에 쓰기 좋은 표본이 있는 슬랩"><input type="checkbox" name="star" value="1"{% if star %} checked{% endif %} onchange="this.form.submit()"> ☆ 별표</label>
+  <label class="chip" title="counterpart 짝 슬랩이 적힌 슬랩"><input type="checkbox" name="pair" value="1"{% if pair %} checked{% endif %} onchange="this.form.submit()"> 짝</label>
   <button type="submit" class="btn">찾기</button>
   {% if keep %}<a href="?{% if year %}y={{ year }}{% endif %}{% if mode == 'grid' %}&view=grid{% endif %}">지우기</a>{% endif %}
   {% if mode == 'list' %}<nav class="seg" aria-label="묶기">
-    <a href="?{% if year %}y={{ year }}&{% endif %}{% if q %}q={{ q|urlencode }}&{% endif %}{% if kind %}kind={{ kind }}{% endif %}"{% if by == 'no' %} class="on"{% endif %} title="NAS 폴더처럼 번호 열 개씩">번호</a>
-    <a href="?{% if year %}y={{ year }}&{% endif %}{% if q %}q={{ q|urlencode }}&{% endif %}{% if kind %}kind={{ kind }}&{% endif %}by=horizon"{% if by == 'horizon' %} class="on"{% endif %} title="phyloserver 의 층준, 0.1 m 구간">층준</a>
+    <a href="?{% if year %}y={{ year }}&{% endif %}{% if q %}q={{ q|urlencode }}&{% endif %}{% if kind %}kind={{ kind }}&{% endif %}{% if star %}star=1&{% endif %}{% if pair %}pair=1{% endif %}"{% if by == 'no' %} class="on"{% endif %} title="NAS 폴더처럼 번호 열 개씩">번호</a>
+    <a href="?{% if year %}y={{ year }}&{% endif %}{% if q %}q={{ q|urlencode }}&{% endif %}{% if kind %}kind={{ kind }}&{% endif %}{% if star %}star=1&{% endif %}{% if pair %}pair=1&{% endif %}by=horizon"{% if by == 'horizon' %} class="on"{% endif %} title="phyloserver 의 층준, 0.1 m 구간">층준</a>
   </nav>{% endif %}
   {% if by == 'horizon' %}<input type="hidden" name="by" value="horizon">{% endif %}
   <span class="dim">{{ n_rows }} 슬랩</span>
@@ -82,6 +101,7 @@
 {% if mode == 'list' %}
 {% if groups %}
 <table class="slabs">
+  <colgroup><col class="c-no"><col class="c-hz wide-only"><col><col class="c-ph wide-only"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-d wide-only"></colgroup>
   <thead><tr>
     <th>슬랩</th><th class="wide-only">층준</th><th>분류군</th><th class="wide-only">문</th>
     <th class="n">표본</th><th class="n">빛 묶음</th><th class="n">PTM</th><th class="n">사본</th><th class="n">컷</th><th class="wide-only">처음 촬영</th>
@@ -97,7 +117,7 @@
     {% for r in g.rows %}
     {% if r.folder_head %}<tr class="row fold" data-in="{{ g.id }}"><td colspan="10">{{ r.folder }}</td></tr>{% endif %}
     <tr class="row" data-in="{{ g.id }}">
-      <td><a class="no" href="{% url 'slab' r.slab.slab_no %}">{{ r.slab.slab_no }}</a></td>
+      <td><a class="no" href="{% url 'slab' r.slab.slab_no %}">{{ r.slab.slab_no }}</a>{% if r.stars %}<span class="mk star" title="별표 표본">{{ r.stars }}</span>{% endif %}{% if r.pairs %}<span class="mk pair" title="짝 {{ r.pairs|join:', ' }}">짝</span>{% endif %}</td>
       <td class="wide-only mono">{{ r.slab.horizon|default:"—" }}</td>
       <td class="taxa">{{ r.taxa|join:", "|default:"—" }}</td>
       <td class="wide-only dim">{{ r.phyla|join:", " }}</td>
@@ -153,7 +173,7 @@
     <span class="meta"><b>{{ r.slab.slab_no }}</b>
       <span class="sub">{{ r.slab.horizon|default:"층준 미기록" }} · 표본 {{ r.n_specimens }}</span>
       <span class="taxa">{{ r.taxa|join:", "|default:"—" }}</span>
-      <span class="tags">{% if r.series %}<span class="tag series">빛 묶음 {{ r.series }}</span>{% endif %}{% if r.ptm %}<span class="tag ptm">PTM {{ r.ptm }}</span>{% endif %}{% if r.copies %}<span class="tag copy">사본 {{ r.copies }}</span>{% endif %}</span>
+      <span class="tags">{% if r.stars %}<span class="tag star">{{ r.stars }}</span>{% endif %}{% if r.pairs %}<span class="tag pair" title="{{ r.pairs|join:', ' }}">짝 {{ r.pairs|length }}</span>{% endif %}{% if r.series %}<span class="tag series">빛 묶음 {{ r.series }}</span>{% endif %}{% if r.ptm %}<span class="tag ptm">PTM {{ r.ptm }}</span>{% endif %}{% if r.copies %}<span class="tag copy">사본 {{ r.copies }}</span>{% endif %}</span>
     </span>
   </a>
   {% endfor %}
