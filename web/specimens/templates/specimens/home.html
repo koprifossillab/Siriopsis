@@ -24,13 +24,14 @@
   /* 열 너비를 고정한다 (사용자 2026-10-26) — 자동 배치는 펼친 줄의 글자에 따라 접고 펼 때마다 열이 움직였다. 분류군이 남는 폭을 가진다 */
   @media (min-width: 901px) {
     table.slabs { table-layout: fixed; }
-    .slabs col.c-no { width: 10.5rem; } .slabs col.c-hz { width: 7.5rem; } .slabs col.c-ph { width: 13rem; }
+    .slabs col.c-no { width: 13rem; } .slabs col.c-hz { width: 7.5rem; } .slabs col.c-ph { width: 13rem; }
     .slabs col.c-n { width: 5rem; } .slabs col.c-d { width: 7.5rem; }
-    .slabs td { overflow-wrap: anywhere; }
   }
   .slabs th { text-align: left; font-size: 11px; font-weight: 650; color: var(--dim); text-transform: uppercase;
               letter-spacing: .4px; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-  .slabs td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  /* 목록은 한 줄에 한 슬랩 — 어떤 칸도 줄을 바꾸지 않는다(사용자 2026-10-26). 넘치면 「…」, 전체는 title 로 */
+  .slabs td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .slabs .n { text-align: right; }
   .slabs th.n { text-align: right; }
   .slabs tr.grp td { background: var(--group-bg); font-weight: 650; cursor: pointer; user-select: none; }
@@ -118,9 +119,9 @@
     {% if r.folder_head %}<tr class="row fold" data-in="{{ g.id }}"><td colspan="10">{{ r.folder }}</td></tr>{% endif %}
     <tr class="row" data-in="{{ g.id }}">
       <td><a class="no" href="{% url 'slab' r.slab.slab_no %}">{{ r.slab.slab_no }}</a>{% if r.stars %}<span class="mk star" title="별표 표본">{{ r.stars }}</span>{% endif %}{% if r.pairs %}<span class="mk pair" title="짝 {{ r.pairs|join:', ' }}">짝</span>{% endif %}</td>
-      <td class="wide-only mono">{{ r.slab.horizon|default:"—" }}</td>
-      <td class="taxa">{{ r.taxa|join:", "|default:"—" }}</td>
-      <td class="wide-only dim">{{ r.phyla|join:", " }}</td>
+      <td class="wide-only mono" title="{{ r.slab.horizon }}">{{ r.slab.horizon|default:"—" }}</td>
+      <td class="taxa" title="{{ r.taxa|join:', ' }}">{{ r.taxa|join:", "|default:"—" }}</td>
+      <td class="wide-only dim" title="{{ r.phyla|join:', ' }}">{{ r.phyla|join:", " }}</td>
       <td class="n{% if not r.n_specimens %} zero{% endif %}">{{ r.n_specimens }}</td>
       <td class="n{% if not r.series %} zero{% endif %}">{{ r.series }}</td>
       <td class="n{% if not r.ptm %} zero{% endif %}">{{ r.ptm }}</td>

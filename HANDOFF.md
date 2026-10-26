@@ -1,6 +1,6 @@
 # HANDOFF
 
-**2026-10-26** · **`v0.3.2` 운영 중** — http://paleolab/Siriopsis/ ([014](devlog/20261026_wetherilli_014_release_v030.md) · [016](devlog/20261026_wetherilli_016_vent_beside_dorsal.md) vent 를 dorsal 옆에 · [017](devlog/20261026_wetherilli_017_list_fixed_columns_and_marks.md) 목록 ☆·짝 거르기).
+**2026-10-26** · **`v0.3.3` 운영 중** — http://paleolab/Siriopsis/ ([014](devlog/20261026_wetherilli_014_release_v030.md) · [016](devlog/20261026_wetherilli_016_vent_beside_dorsal.md) vent 를 dorsal 옆에 · [017](devlog/20261026_wetherilli_017_list_fixed_columns_and_marks.md) 목록 ☆·짝 거르기).
 슬랩 전경(dorsal·vent) · 슬랩 화면(왼쪽 전경·속성 / 오른쪽 더미 카드) · 배율·스케일바·길이 재기 · 표본 테두리 · 글자 없음=A · ☆ 별표(`/starred/`) · counterpart 짝 ·
 묶음 고치기와 백업(v0.2.0, [008](devlog/20261025_wetherilli_008_regroup_and_backup.md)). 일은 tmux 일꾼 둘 + 지휘 세션으로 나눠 했다(메모리 `parallel_tmux_and_admin_loop`).
 **자료가 맞는지 확인을 기다리며 멈추지 않는다** — 사용자는 데이터가 옳다고 보고 틀을 짜는 중이다. 아래 §0 은 막는 일이 아니다.
